@@ -1,0 +1,28 @@
+import base64
+import pickle
+
+from filament.redis_utils import r
+
+CACHE_KEY_PREFIX = 'cache:'
+
+
+def get_key(key):
+    return f'{CACHE_KEY_PREFIX}{key}'
+
+
+async def cache_has_key(key):
+    return await r.exists(get_key(key))
+
+
+async def cache_get(key):
+    bsae64_encoded_value = await r.get(get_key(key))
+    if bsae64_encoded_value is None:
+        return None
+    pickled_value = base64.b64decode(bsae64_encoded_value)
+    return pickle.loads(pickled_value)
+
+
+async def cache_set(key, value, ttl=3600):
+    pickled_value = pickle.dumps(value)
+    base64_encoded_value = base64.b64encode(pickled_value).decode('utf-8')
+    await r.set(get_key(key), base64_encoded_value, ex=ttl)

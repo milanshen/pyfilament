@@ -22,4 +22,9 @@ export default defineConfig({
             },
         },
     },
+    preview: {
+        host: true,
+        port: 3001,
+        allowedHosts: true,
+    },
 });

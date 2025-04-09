@@ -1,16 +1,17 @@
 import logging
+import os
 import uuid
 from datetime import datetime
 from enum import Enum
 
-from dotenv import dotenv_values
+from dotenv import load_dotenv
 from pytz import timezone
 from sqlmodel import TIMESTAMP, Column, Field, Relationship, Session, SQLModel, create_engine, text
 
 logger = logging.getLogger(__name__)
 
-dotenv_config = dotenv_values()
-DATABASE_URL = dotenv_config.get('FILAMENT_DB_URI', 'sqlite://filament.db')
+load_dotenv()
+DATABASE_URL = os.getenv('FILAMENT_DB_URI', 'sqlite://filament.db')
 engine = create_engine(DATABASE_URL)
 
 REDIS_KEY_PREFIX = 'task_run:'

@@ -1,15 +1,16 @@
 import logging
+import os
 
 import redis
 import redis.asyncio
-from dotenv import dotenv_values
+from dotenv import load_dotenv
 
 logger = logging.getLogger(__name__)
 
-dotenv_config = dotenv_values()
-REDIS_HOST = dotenv_config.get('REDIS_HOST', 'localhost')
-REDIS_PORT = dotenv_config.get('REDIS_PORT', 6379)
-REDIS_DB = dotenv_config.get('REDIS_DB', 0)
+load_dotenv()
+REDIS_HOST = os.getenv('FILAMENT_REDIS_HOST', 'localhost')
+REDIS_PORT = os.getenv('FILAMENT_REDIS_PORT', 6379)
+REDIS_DB = os.getenv('FILAMENT_REDIS_DB', 0)
 
 
 r = redis.asyncio.Redis(host=REDIS_HOST, port=REDIS_PORT, db=REDIS_DB, decode_responses=True)

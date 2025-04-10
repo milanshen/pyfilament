@@ -7,7 +7,7 @@ import HumanTime from '@/components/HumanTime';
 import JSONExpandableMessage from '@/components/JSONExpandableMessage';
 import StateBadge from '@/components/StateBadge';
 import TaskContext from '@/components/TaskContext';
-import TaskLink from '@/components/TaskLInk';
+import TaskLink from '@/components/TaskLink';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';

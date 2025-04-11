@@ -1,6 +1,7 @@
 import { useMutation, useQuery } from '@apollo/client';
 import { useQuery as useReactQuery } from '@tanstack/react-query';
 import dayjs from 'dayjs';
+import _ from 'lodash';
 import { useContext, useState } from 'react';
 import { useParams } from 'react-router-dom';
 
@@ -22,13 +23,15 @@ function TaskRunPage() {
     const { refetch: refetchTaskRun } = useQuery(GET_TASK_RUN, { skip: true });
     const [selectedTask, setSelectedTask] = useState(null);
 
-    const fetchFullTree = async (variables) => {
+    const fetchFullTree = async (variables, depth = 1) => {
         const { data } = await refetchTaskRun(variables);
         const taskRun = data.getTaskRun;
         const newChildTasks = [];
-        for (const childTask of taskRun.childTasks) {
-            const childData = await fetchFullTree({ id: childTask.id });
-            newChildTasks.push(childData);
+        if (depth > 0) {
+            for (const childTask of taskRun.childTasks) {
+                const childData = await fetchFullTree({ id: childTask.id }, depth - 1);
+                newChildTasks.push(childData);
+            }
         }
         let newTaskRun = { ...taskRun, childTasks: newChildTasks };
         return newTaskRun;
@@ -37,7 +40,7 @@ function TaskRunPage() {
     const fetchTaskRunTree = useReactQuery({
         queryKey: ['taskRun', taskRunId],
         queryFn: async () => {
-            const result = await fetchFullTree({ id: taskRunId });
+            const result = await fetchFullTree({ id: taskRunId }, 2);
             setSelectedTask(result);
             return result;
         },
@@ -59,7 +62,7 @@ function TaskRunPage() {
     }
 
     const rootTaskRun = fetchTaskRunTree.data;
-    const tasks = flattenTasks(rootTaskRun);
+    const tasks = _.sortBy(flattenTasks(rootTaskRun), ['createdAt']);
 
     return (
         <TaskContext.Provider value={{ selectedTask, setSelectedTask, rootTaskRun, fetchTaskRunTree }}>

@@ -59,19 +59,34 @@ async def dequeue_task_run(task, worker_id):
             return message_data['json_data']
 
 
-async def publish_task_result(filament_task_result):
+async def publish_task_result(filament_task_result, is_final=True):
     channel_name = get_channel_name(filament_task_result.task_uuid)
+    logger.debug(
+        f'{filament_task_result.task_uuid} publishing to {channel_name} with data {filament_task_result.model_dump_json()}'
+    )
     await r.set(channel_name, filament_task_result.model_dump_json())
-    await r.publish(channel_name, 'complete')
+    if is_final:
+        await r.publish(channel_name, 'complete')
+    else:
+        await r.publish(channel_name, 'partial')
 
 
 async def listen_for_task_result(task_uuid):
     channel_name = get_channel_name(task_uuid)
     pubsub = r.pubsub()
+    last_result = None
+    has_yielded = False
     await pubsub.subscribe(channel_name)
     async for message in pubsub.listen():
         if message['type'] == 'message':
-            logger.info(f'{message["data"]} received on {channel_name}')
+            logger.debug(f'{message["data"]} received on {channel_name}')
             if message['data'] == 'complete':
                 await pubsub.unsubscribe(channel_name)
-                return await r.get(channel_name)
+                final_result = await r.get(channel_name)
+                if not has_yielded and last_result != final_result:
+                    yield final_result
+                return
+            elif message['data'] == 'partial':
+                has_yielded = True
+                last_result = await r.get(channel_name)
+                yield last_result

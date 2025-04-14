@@ -39,9 +39,11 @@ async def g():
 async def gen_root():
     logger = get_logger()
     # async for i in gen():
-    #     logger.info('hello from gen_root, i: %s', i)
-    j = await gen()
-    logger.info('hello from gen_root, return result: %s', j)
+    async for i in gen.request():
+        logger.info('hello from gen_root, i: %s', i)
+    # j = await gen()
+    # j = await gen.request()
+    # logger.info('hello from gen_root, return result: %s', j)
 
 
 @task

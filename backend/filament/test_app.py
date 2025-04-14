@@ -40,8 +40,8 @@ async def gen_root():
     logger = get_logger()
     # async for i in gen():
     #     logger.info('hello from gen_root, i: %s', i)
-    i = await gen()
-    logger.info('hello from gen_root, i: %s', i)
+    j = await gen()
+    logger.info('hello from gen_root, return result: %s', j)
 
 
 @task

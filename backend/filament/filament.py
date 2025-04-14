@@ -382,7 +382,6 @@ class FilamentTaskRun(FilamentBaseModel):
     async def __aiter__(self):
         if not inspect.isasyncgenfunction(self.type._func):
             raise TypeError(f'Unsupported function type: {get_function_type(self.type._func)}')
-        has_yield = False
         while True:
             chunk = None
             self.start()
@@ -395,6 +394,7 @@ class FilamentTaskRun(FilamentBaseModel):
                 async def _wait_for_result():
                     nonlocal chunk
                     chunk = await self._result_receive.receive()
+                    task_group.cancel_scope.cancel()
 
                 task_group.start_soon(_wait_for_done)
                 task_group.start_soon(_wait_for_result)
@@ -402,15 +402,13 @@ class FilamentTaskRun(FilamentBaseModel):
             if self._done_event.is_set():
                 break
 
-            has_yield = True
             yield chunk
 
         if self._exception:
             if self.config.propagate:
                 raise self._exception
             yield self._exception
-        if not has_yield:
-            yield self._result
+        yield self._result
 
 
 class FilamentRemoteException(Exception):
@@ -620,6 +618,7 @@ def task(*wrapper_args, **wrapper_kwargs):
 
 
 def lookup(task_address):
+    assert task_address in TASK_TYPE_REGISTRY, f'Task {task_address} not found'
     return TASK_TYPE_REGISTRY.get(task_address)
 
 

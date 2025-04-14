@@ -32,6 +32,6 @@ class RedisHandler(logging.Handler):
             self.redis.rpush(redis_key, msg)
             if self.max_length:
                 self.redis.ltrim(redis_key, -self.max_length, -1)
-            logger.debug(f'Log message pushed to Redis list: {redis_key} {msg}')
+            # logger.debug(f'Log message pushed to Redis list: {redis_key} {msg}')
         except Exception:
             self.handleError(record)

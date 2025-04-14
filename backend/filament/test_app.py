@@ -38,19 +38,19 @@ async def g():
 @task
 async def gen_root():
     logger = get_logger()
-    async for i in gen():
-        # async for i in gen.request():
+    async for i in gen(propagate=False):
+        # async for i in gen.request(propagate=False):
         logger.info('hello from gen_root, i: %s', i)
-    # j = await gen()
-    # j = await gen.request()
+    # j = await gen(propagate=False)
+    # j = await gen.request(propagate=False)
     # logger.info('hello from gen_root, return result: %s', j)
 
 
 @task
 async def gen():
     for i in range(10):
-        # if i == 5:
-        #     raise CustomException('Error in gen')
+        if i == 5:
+            raise CustomException('Error in gen')
         await asyncio.sleep(0.2)
         yield i
 

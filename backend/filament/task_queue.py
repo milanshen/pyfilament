@@ -72,8 +72,6 @@ async def publish_task_result(task_result, is_final=True):
 async def listen_for_task_result(task_uuid):
     channel_name = get_channel_name(task_uuid)
     pubsub = r.pubsub()
-    last_result = None
-    has_yielded = False
     await pubsub.subscribe(channel_name)
     async for message in pubsub.listen():
         if message['type'] == 'message':
@@ -81,10 +79,7 @@ async def listen_for_task_result(task_uuid):
             if message['data'] == 'complete':
                 await pubsub.unsubscribe(channel_name)
                 final_result = await r.get(channel_name)
-                if not has_yielded and last_result != final_result:
-                    yield final_result
-                return
+                yield final_result, True
             elif message['data'] == 'partial':
-                has_yielded = True
                 last_result = await r.get(channel_name)
-                yield last_result
+                yield last_result, False

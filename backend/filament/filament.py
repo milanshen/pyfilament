@@ -415,10 +415,10 @@ class FilamentTaskRun(FilamentBaseModel):
 class FilamentRemoteTaskRun(FilamentTaskRun):
     async def call(self):
         await enqueue_task_run(self)
-        async for task_result_json in listen_for_task_result(self.uuid):
+        async for task_result_json, is_final in listen_for_task_result(self.uuid):
             pass
         task_result = FilamentTaskResult.model_validate_json(task_result_json)
-        return task_result.result()
+        return task_result.result(propagate=self.config.propagate)
 
     def __await__(self):
         return self.call().__await__()
@@ -427,9 +427,18 @@ class FilamentRemoteTaskRun(FilamentTaskRun):
         if not inspect.isasyncgenfunction(self.type._func):
             raise TypeError(f'Unsupported function type: {get_function_type(self.type._func)}')
         await enqueue_task_run(self)
-        async for task_result_json in listen_for_task_result(self.uuid):
+        last_result = None
+        async for task_result_json, is_final in listen_for_task_result(self.uuid):
+            self._logger.debug(f'remote received {task_result_json}')
             task_result = FilamentTaskResult.model_validate_json(task_result_json)
-            yield task_result.result()
+            if not is_final:
+                last_result = task_result.result()
+                yield last_result
+        assert is_final, f'Expected final result, got {task_result_json}'
+        final_result = task_result.result(propagate=self.config.propagate)
+        # in case the last chunk has an exception
+        if final_result != last_result:
+            yield final_result
 
 
 class FilamentRemoteException(Exception):
@@ -483,9 +492,9 @@ class FilamentTaskResult(FilamentBaseModel):
             # args = pickle.loads(base64.b64decode(exception_dict["args"]))
             # self._exception = exc_type(*args)
 
-    def result(self):
+    def result(self, propagate=True):
         if self._exception:
-            if self.config.propagate:
+            if propagate:
                 raise self._exception
             return self._exception
         return self._result
@@ -532,6 +541,7 @@ class FilamentTaskType(FilamentBaseModel):
             if filament_task_run_json:
                 try:
                     filament_task_run = FilamentTaskRun.model_validate_json(filament_task_run_json)
+                    filament_task_run.config.propagate = True  # always propagate so we can catch and serialize
                 except Exception as e:
                     self._logger.exception(e)
                     continue
@@ -657,6 +667,6 @@ def print_task_registry():
 
 async def wait_for_task_run(task_uuid, timeout=None):
     with anyio.fail_after(timeout):
-        async for task_result_json in listen_for_task_result(task_uuid):
+        async for task_result_json, is_final in listen_for_task_result(task_uuid):
             pass
         return task_result_json

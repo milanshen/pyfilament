@@ -411,6 +411,24 @@ class FilamentTaskRun(FilamentBaseModel):
         yield self._result
 
 
+class FilamentRemoteTaskRun(FilamentTaskRun):
+    async def call(self):
+        await enqueue_task_run(self)
+        while True:
+            task_result_json = await listen_for_task_result(self.uuid)
+            if task_result_json:
+                task_result = FilamentTaskResult.model_validate_json(task_result_json)
+                if task_result._exception:
+                    if self.config.propagate:
+                        raise task_result._exception
+                    return task_result._exception
+                return task_result._result
+            await anyio.sleep(1)
+
+    def __await__(self):
+        return self.call().__await__()
+
+
 class FilamentRemoteException(Exception):
     def __init__(self, exc_type, message, traceback=None):
         self.exc_type = exc_type
@@ -513,33 +531,20 @@ class FilamentTaskType(FilamentBaseModel):
                 except Exception as e:
                     exception = e
                     self._logger.exception(e)
-                result = FilamentTaskResult(
+                filament_result = FilamentTaskResult(
                     type=self,
                     task_uuid=filament_task_run.uuid,
                     result=result,
                     exception=exception,
                 )
-                await publish_task_result(result)
+                await publish_task_result(filament_result)
             else:
                 await anyio.sleep(1)
 
-    async def request(self, *task_args, **task_kwargs):
-        propagate = False
-        if 'propagate' in task_kwargs:
-            propagate = task_kwargs.pop('propagate')
+    def request(self, *task_args, **task_kwargs):
         task_run = self(*task_args, **task_kwargs)
-        # TODO: add a state for queueing
-        await enqueue_task_run(task_run)
-        while True:
-            task_result_json = await listen_for_task_result(task_run.uuid)
-            if task_result_json:
-                task_result = FilamentTaskResult.model_validate_json(task_result_json)
-                if task_result._exception:
-                    if propagate:
-                        raise task_result._exception
-                    return task_result._exception
-                return task_result._result
-            await anyio.sleep(1)
+        task_run = FilamentRemoteTaskRun.model_validate(task_run.model_dump())
+        return task_run
 
     def __call__(self, *task_args, **task_kwargs):
         task_run = FilamentTaskRun(

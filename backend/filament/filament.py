@@ -4,6 +4,7 @@ import functools
 import inspect
 import json
 import logging
+import math
 import pickle
 import traceback
 from contextlib import asynccontextmanager, contextmanager
@@ -157,7 +158,7 @@ class FilamentTaskRun(FilamentBaseModel):
         self._try_index = None
         self._result = None
         self._exception = None
-        self._result_send, self._result_receive = anyio.create_memory_object_stream(0)
+        self._result_send, self._result_receive = anyio.create_memory_object_stream(math.inf)
         self._done_event = anyio.Event()
         self._task = None
         self._logger = logging.getLogger(f'{self.type.func_address}:{self.uuid}')
@@ -339,9 +340,7 @@ class FilamentTaskRun(FilamentBaseModel):
                                                     async for item in self.type._func(
                                                         *self.task_args, **self.task_kwargs
                                                     ):
-                                                        task_group.start_soon(
-                                                            functools.partial(self._result_send.send, item)
-                                                        )
+                                                        await self._result_send.send(item)
                                                     return item
                                                 elif inspect.isfunction(self.type._func):
                                                     return self.type._func(*self.task_args, **self.task_kwargs)
@@ -378,9 +377,10 @@ class FilamentTaskRun(FilamentBaseModel):
     async def __aiter__(self):
         if not inspect.isasyncgenfunction(self.type._func):
             raise TypeError(f'Unsupported function type: {get_function_type(self.type._func)}')
-        while True:
+        self.start()
+        while not self._done_event.is_set():
+            should_yield = False
             chunk = None
-            self.start()
             async with anyio.create_task_group() as task_group:
 
                 async def _wait_for_done():
@@ -388,19 +388,19 @@ class FilamentTaskRun(FilamentBaseModel):
                     task_group.cancel_scope.cancel()
 
                 async def _wait_for_result():
-                    nonlocal chunk
+                    nonlocal chunk, should_yield
                     chunk = await self._result_receive.receive()
+                    should_yield = True  # just in case chunk is None
                     task_group.cancel_scope.cancel()
 
-                task_group.start_soon(_wait_for_done)
                 task_group.start_soon(_wait_for_result)
-
-            if self._done_event.is_set():
-                break
-
-            yield chunk
-
-        yield await self.result()
+                task_group.start_soon(_wait_for_done)
+            if should_yield:
+                yield chunk
+        # in case the last chunk has an exception
+        result = await self.result()
+        if result != chunk:
+            yield result
 
     async def result(self):
         if not self._done_event.is_set():

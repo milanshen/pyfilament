@@ -541,13 +541,13 @@ class FilamentTaskType(FilamentBaseModel):
                 if inspect.isasyncgenfunction(self._func):
                     try:
                         async for result in filament_task_run:
-                            filament_result = FilamentTaskResult(
+                            task_result = FilamentTaskResult(
                                 type=self,
                                 task_uuid=filament_task_run.uuid,
                                 result=result,
                                 exception=exception,
                             )
-                            await publish_task_result(filament_result, is_final=False)
+                            await publish_task_result(task_result, is_final=False)
                     except Exception as e:
                         exception = e
                         self._logger.exception(e)
@@ -557,13 +557,13 @@ class FilamentTaskType(FilamentBaseModel):
                     except Exception as e:
                         exception = e
                         self._logger.exception(e)
-                filament_result = FilamentTaskResult(
+                task_result = FilamentTaskResult(
                     type=self,
                     task_uuid=filament_task_run.uuid,
                     result=result,
                     exception=exception,
                 )
-                await publish_task_result(filament_result)
+                await publish_task_result(task_result)
             else:
                 await anyio.sleep(1)
 

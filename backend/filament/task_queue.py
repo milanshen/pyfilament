@@ -59,12 +59,10 @@ async def dequeue_task_run(task, worker_id):
             return message_data['json_data']
 
 
-async def publish_task_result(filament_task_result, is_final=True):
-    channel_name = get_channel_name(filament_task_result.task_uuid)
-    logger.debug(
-        f'{filament_task_result.task_uuid} publishing to {channel_name} with data {filament_task_result.model_dump_json()}'
-    )
-    await r.set(channel_name, filament_task_result.model_dump_json())
+async def publish_task_result(task_result, is_final=True):
+    channel_name = get_channel_name(task_result.task_uuid)
+    logger.debug(f'{task_result.task_uuid} publishing to {channel_name} with data {task_result.model_dump_json()}')
+    await r.set(channel_name, task_result.model_dump_json())
     if is_final:
         await r.publish(channel_name, 'complete')
     else:

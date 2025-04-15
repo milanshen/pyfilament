@@ -518,43 +518,40 @@ class FilamentTaskType(FilamentBaseModel):
         worker_id = str(uuid4())
         await setup_queue(self)
         while True:
-            filament_task_run_json = await dequeue_task_run(self, worker_id)
-            if filament_task_run_json:
+            message_id, filament_task_run_json = await dequeue_task_run(self, worker_id)
+            try:
+                filament_task_run = FilamentTaskRun.model_validate_json(filament_task_run_json)
+                filament_task_run.config.propagate = True  # always propagate so we can catch and serialize
+            except Exception as e:
+                self._logger.exception(e)
+                continue
+            result, exception = None, None
+            if inspect.isasyncgenfunction(self._func):
                 try:
-                    filament_task_run = FilamentTaskRun.model_validate_json(filament_task_run_json)
-                    filament_task_run.config.propagate = True  # always propagate so we can catch and serialize
+                    async for result in filament_task_run:
+                        task_result = FilamentTaskResult(
+                            type=self,
+                            task_uuid=filament_task_run.uuid,
+                            result=result,
+                            exception=exception,
+                        )
+                        await publish_task_result(task_result, is_final=False)
                 except Exception as e:
+                    exception = e
                     self._logger.exception(e)
-                    continue
-                result, exception = None, None
-                if inspect.isasyncgenfunction(self._func):
-                    try:
-                        async for result in filament_task_run:
-                            task_result = FilamentTaskResult(
-                                type=self,
-                                task_uuid=filament_task_run.uuid,
-                                result=result,
-                                exception=exception,
-                            )
-                            await publish_task_result(task_result, is_final=False)
-                    except Exception as e:
-                        exception = e
-                        self._logger.exception(e)
-                else:
-                    try:
-                        result = await filament_task_run
-                    except Exception as e:
-                        exception = e
-                        self._logger.exception(e)
-                task_result = FilamentTaskResult(
-                    type=self,
-                    task_uuid=filament_task_run.uuid,
-                    result=result,
-                    exception=exception,
-                )
-                await publish_task_result(task_result)
             else:
-                await anyio.sleep(1)
+                try:
+                    result = await filament_task_run
+                except Exception as e:
+                    exception = e
+                    self._logger.exception(e)
+            task_result = FilamentTaskResult(
+                type=self,
+                task_uuid=filament_task_run.uuid,
+                result=result,
+                exception=exception,
+            )
+            await publish_task_result(task_result, is_final=True, message_id=message_id)
 
     def request(self, *task_args, **task_kwargs):
         task_run = self(*task_args, **task_kwargs)

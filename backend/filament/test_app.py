@@ -2,7 +2,13 @@ import asyncio
 
 import anyio
 
-from filament.filament import get_logger, task
+from filament.filament import (
+    generate_remote_task_run_results,
+    get_logger,
+    get_remote_task_run_results,
+    task,
+    wait_for_remote_task_run,
+)
 
 
 class CustomException(Exception):
@@ -49,10 +55,37 @@ async def gen_root():
 
 
 @task
+async def gen_root_listen():
+    logger = get_logger()
+    remote_task = gen.request(propagate=False)
+    # remote_task = gen.request(propagate=False, start_immediately=True)
+
+    async def _start_gen(remote_task):
+        async for i in remote_task:
+            logger.info('hello from gen_root, i: %s', i)
+
+    async def _listen_for_task(remote_task):
+        async for i in generate_remote_task_run_results(remote_task.uuid, propagate=False):
+            logger.info('hello from gen_root listening, i: %s', i)
+
+    async with anyio.create_task_group() as tg:
+        tg.start_soon(_start_gen, remote_task)
+        tg.start_soon(_listen_for_task, remote_task)
+
+    logger.info('gen_root waiting for gen to finish')
+    await wait_for_remote_task_run(remote_task.uuid)
+    logger.info('gen_root finished waiting for gen')
+
+    logger.info('gen_root getting final result')
+    final_result = await get_remote_task_run_results(remote_task.uuid)
+    logger.info('gen_root final result: %s', final_result)
+
+
+@task
 async def gen():
     for i in range(10):
-        if i == 5:
-            raise CustomException('Error in gen')
+        # if i == 5:
+        #     raise CustomException('Error in gen')
         await asyncio.sleep(0.2)
         yield i
 

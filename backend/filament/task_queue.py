@@ -81,10 +81,13 @@ async def listen_for_task_result(task_uuid):
             logger.debug(f'{message["data"]} received on {channel_name}')
             if message['data'] == 'complete':
                 await pubsub.unsubscribe(channel_name)
-                final_result = await r.get(channel_name)
-                yield final_result, True
+                yield await get_task_result(task_uuid), True
             elif message['data'] == 'partial':
-                last_result = await r.get(channel_name)
-                yield last_result, False
+                yield await get_task_result(task_uuid), False
             else:
                 raise ValueError(f'Unknown message type: {message["data"]}')
+
+
+async def get_task_result(task_uuid):
+    channel_name = get_channel_name(task_uuid)
+    return await r.get(channel_name)

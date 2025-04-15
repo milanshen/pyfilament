@@ -592,6 +592,11 @@ def get_logger():
         task_run = get_frame_task_run(frame)
         if task_run:
             return logging.getLogger(f'{task_run.type.func_address}:{task_run.uuid}')
+    # no task found, return a default logger for the caller
+    parent_frame = stack[1]
+    parent_frame_module_name = inspect.getmodule(parent_frame.frame).__name__
+    parent_frame_func_name = parent_frame.function
+    return logging.getLogger(f'{parent_frame_module_name}:{parent_frame_func_name}')
 
 
 def get_task_run():

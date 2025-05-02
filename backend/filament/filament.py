@@ -330,12 +330,12 @@ class FilamentTaskRun(FilamentBaseModel):
 
                     @self._retry
                     async def _inner():
-                        with self._transition_timeout_state():
+                        async with self._acquire_semaphore():
+                            async with self._acquire_token_bucket():
+                                with self._transition_timeout_state():
 
-                            @self._cache_results
-                            async def __inner():
-                                async with self._acquire_semaphore():
-                                    async with self._acquire_token_bucket():
+                                    @self._cache_results
+                                    async def __inner():
                                         with self._transition_running_state():
                                             with self._register_frame():
                                                 if inspect.iscoroutinefunction(self.type._func):

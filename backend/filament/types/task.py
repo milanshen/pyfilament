@@ -3,6 +3,7 @@ from datetime import datetime
 
 import strawberry
 
+from filament.db_models import TaskRun as TaskRunModel
 from filament.redis_utils import r
 
 
@@ -67,6 +68,15 @@ class TaskType:
         return len(self.task_runs)
 
     @strawberry.field
-    async def latest_task_run(self) -> TaskRun | None:
-        task_runs = sorted(self.task_runs, key=lambda x: x.created_at, reverse=True)
-        return task_runs[0] if task_runs else None
+    async def latest_task_run(self, info) -> TaskRun | None:
+        # task_runs = sorted(self.task_runs, key=lambda x: x.created_at, reverse=True)
+        # return task_runs[0] if task_runs else None
+        session = info.context['session']
+        task_run = (
+            session.query(TaskRunModel)
+            .where(TaskRunModel.task_type_id == self.id)
+            .order_by(TaskRunModel.created_at.desc())
+            .limit(1)
+            .first()
+        )
+        return task_run

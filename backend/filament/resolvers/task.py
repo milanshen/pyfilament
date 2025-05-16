@@ -1,5 +1,8 @@
-import strawberry
+import datetime
+
+from celery import Task
 from sqlmodel import select
+from strawberry import ID
 from werkzeug.exceptions import BadRequest, NotFound
 
 from filament.db_models import TaskRun as TaskRunModel
@@ -9,7 +12,7 @@ from filament.task_state import transition_state
 from filament.types.task import TaskRun, TaskType
 
 
-async def get_task_run(self, info, id: strawberry.ID | None = None, task_uuid: str | None = None) -> TaskRun:
+async def get_task_run(self, info, id: ID | None = None, task_uuid: str | None = None) -> TaskRun:
     session = info.context['session']
     if task_uuid is not None:
         statement = select(TaskRunModel).where(TaskRunModel.task_uuid == task_uuid)
@@ -23,7 +26,7 @@ async def get_task_run(self, info, id: strawberry.ID | None = None, task_uuid: s
     return task_run
 
 
-async def get_task_type(self, info, id: strawberry.ID | None = None, func_address: str | None = None) -> TaskType:
+async def get_task_type(self, info, id: ID | None = None, func_address: str | None = None) -> TaskType:
     session = info.context['session']
     if func_address is not None:
         statement = select(TaskTypeModel).where(TaskTypeModel.func_address == func_address)
@@ -39,12 +42,13 @@ async def get_task_type(self, info, id: strawberry.ID | None = None, func_addres
 
 async def get_task_types(self, info):
     session = info.context['session']
-    statement = select(TaskTypeModel)
-    task_types = session.exec(statement).all()
+    today = datetime.datetime.now()
+    before = today - datetime.timedelta(days=30)
+    task_types = session.query(TaskTypeModel).join(TaskRunModel).filter(TaskRunModel.created_at > before).all()
     return task_types
 
 
-async def cancel_task_run(self, info, id: strawberry.ID | None = None, task_uuid: str | None = None) -> TaskRun:
+async def cancel_task_run(self, info, id: ID | None = None, task_uuid: str | None = None) -> TaskRun:
     session = info.context['session']
     if task_uuid is not None:
         statement = select(TaskRunModel).where(TaskRunModel.task_uuid == task_uuid)
@@ -66,3 +70,12 @@ def _cancel_task_run(task_run: TaskRunModel) -> TaskRunModel:
     transition_state(task_run.task_uuid, TaskState.CANCELLED)
     for child_task_run in task_run.child_tasks:
         _cancel_task_run(child_task_run)
+
+
+async def get_task_runs(self, info, task_type_id: ID, states: list[str] | None = None):
+    session = info.context['session']
+    query = session.query(TaskRunModel).where(TaskRunModel.task_type_id == task_type_id)
+    if states:
+        query = query.where(TaskRunModel.state.in_(states))
+    task_runs = query.order_by(TaskRunModel.created_at.desc()).limit(99).all()
+    return task_runs

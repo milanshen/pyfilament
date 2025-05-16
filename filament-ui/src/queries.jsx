@@ -71,8 +71,8 @@ const GET_TASK_RUN_LOGS = gql`
     }
 `;
 
-const GET_TASK_TYPE_RUNS = gql`
-    query GetTaskTypeRuns($id: ID!) {
+const GET_TASK_TYPE = gql`
+    query GetTaskType($id: ID!) {
         getTaskType(id: $id) {
             id
             name
@@ -89,6 +89,23 @@ const GET_TASK_TYPE_RUNS = gql`
                 parentTaskUuid
                 parametersJson
             }
+        }
+    }
+`;
+
+const GET_TASK_RUNS = gql`
+    query GetTaskRuns($taskTypeId: ID!, $states: [String!]!) {
+        getTaskRuns(taskTypeId: $taskTypeId, states: $states) {
+            id
+            taskUuid
+            name
+            createdAt
+            state
+            stateSince
+            heartbeat
+            runCount
+            parentTaskUuid
+            parametersJson
         }
     }
 `;
@@ -126,6 +143,7 @@ export {
     GET_TASK_RUN,
     GET_TASK_RUN_BREADCRUMB,
     GET_TASK_RUN_LOGS,
-    GET_TASK_TYPE_RUNS,
+    GET_TASK_RUNS,
+    GET_TASK_TYPE,
     GET_TASK_TYPES,
 };

@@ -1,5 +1,6 @@
 import { useQuery } from '@apollo/client';
 import _ from 'lodash';
+import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import ExpandableMessage from '@/components/ExpandableMessage';
@@ -8,24 +9,52 @@ import { LinkTo } from '@/components/LinkTo';
 import StateBadge from '@/components/StateBadge';
 import TaskContext from '@/components/TaskContext';
 import TaskLink from '@/components/TaskLink';
+import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
-import { GET_TASK_TYPE_RUNS } from './queries';
+import { GET_TASK_RUNS, GET_TASK_TYPE } from './queries';
+
+const INCOMPLETE_STATES = ['created', 'running', 'timeout', 'retrying'];
+const SUCCESS_STATES = ['success', 'cached'];
+const FAILURE_STATES = ['failure', 'cancelled'];
+const COMPLETE_STATES = [...SUCCESS_STATES, ...FAILURE_STATES];
+const ALL_STATES = [...INCOMPLETE_STATES, ...COMPLETE_STATES];
+
+const STATE_FILTERS = {
+    all: ALL_STATES,
+    incomplete: INCOMPLETE_STATES,
+    success: SUCCESS_STATES,
+    failure: FAILURE_STATES,
+};
 
 function TaskTypePage() {
     const { taskTypeId } = useParams();
-    const getTaskTypeRunsQuery = useQuery(GET_TASK_TYPE_RUNS, { variables: { id: taskTypeId } });
+
+    const [stateFilter, setStateFilter] = useState('all');
+
+    const getTaskTypeQuery = useQuery(GET_TASK_TYPE, { variables: { id: taskTypeId } });
+    const getTaskRunsQuery = useQuery(GET_TASK_RUNS, {
+        variables: {
+            taskTypeId,
+            states: STATE_FILTERS[stateFilter],
+        },
+    });
+
     const navigate = useNavigate();
 
-    if (getTaskTypeRunsQuery.loading || getTaskTypeRunsQuery.error) {
-        return <p>{getTaskTypeRunsQuery.loading ? 'Loading...' : `Error: ${getTaskTypeRunsQuery.error.message}`}</p>;
+    if (getTaskTypeQuery.loading || getTaskRunsQuery.loading) {
+        return <p>Loading...</p>;
     }
 
-    const taskType = getTaskTypeRunsQuery.data.getTaskType;
-    const taskRuns = _.sortBy(taskType.taskRuns, ['createdAt']).reverse();
+    if (getTaskTypeQuery.error || getTaskRunsQuery.error) {
+        return <p>Error: {getTaskTypeQuery.error?.message || getTaskRunsQuery.error?.message}</p>;
+    }
+
+    const taskType = getTaskTypeQuery.data.getTaskType;
+    const taskRuns = _.sortBy(getTaskRunsQuery.data.getTaskRuns, ['createdAt']).reverse();
 
     return (
         <TaskContext.Provider value={{ rootTaskType: taskType }}>
-            <div className="flex flex-col p-4">
+            <div className="flex flex-col gap-4 p-4">
                 <div className="flex flex-col gap-2 pb-4 text-neutral-500">
                     <LinkTo url="/">Filament</LinkTo>
                     <div className="flex items-center gap-2 pl-4">
@@ -33,7 +62,24 @@ function TaskTypePage() {
                         <TaskLink taskType={taskType} />
                     </div>
                 </div>
-                <div className="text-2xl font-bold">Task Runs</div>
+                <div className="flex justify-between">
+                    <div className="text-2xl font-bold">Task Runs</div>
+                    <div>
+                        <Select value={stateFilter} onValueChange={setStateFilter}>
+                            <SelectTrigger>
+                                <SelectValue placeholder="state" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectGroup>
+                                    <SelectItem value="all">All</SelectItem>
+                                    <SelectItem value="incomplete">Incomplete</SelectItem>
+                                    <SelectItem value="success">Success</SelectItem>
+                                    <SelectItem value="failure">Failure</SelectItem>
+                                </SelectGroup>
+                            </SelectContent>
+                        </Select>
+                    </div>
+                </div>
                 <div className="flex flex-col gap-4">
                     {taskRuns.map((taskRun) => (
                         <div key={taskRun.id} className="flex items-start gap-4 rounded bg-gray-100 p-4">

@@ -6,6 +6,7 @@ from enum import Enum
 
 from dotenv import load_dotenv
 from pytz import timezone
+from sqlalchemy import Index, String, null
 from sqlalchemy.orm import declarative_base
 from sqlmodel import TIMESTAMP, Column, Field, Relationship, Session, create_engine, text
 from sqlmodel import SQLModel as BaseSQLModel
@@ -49,9 +50,11 @@ class TaskRun(SQLModel, table=True):
 
     id: int = Field(default=None, primary_key=True)
     created_at: datetime = Field(default_factory=get_utc_now, sa_column=Column(TIMESTAMP(timezone=True)))
-    task_uuid: str = Field(default_factory=lambda: str(uuid.uuid4()), unique=True)
+    task_uuid: str = Field(
+        default_factory=lambda: str(uuid.uuid4()), sa_column=Column(String, unique=True, nullable=False)
+    )
     name: str | None = Field(default=None)
-    state: str = Field(default=TaskState.CREATED)
+    state: str = Field(default=TaskState.CREATED, sa_column=Column(String, nullable=False))
     state_since: datetime = Field(default_factory=get_utc_now, sa_column=Column(TIMESTAMP(timezone=True)))
     heartbeat: datetime = Field(default_factory=get_utc_now, sa_column=Column(TIMESTAMP(timezone=True)))
     run_count: int = Field(default=0)
@@ -73,6 +76,11 @@ class TaskRun(SQLModel, table=True):
 
     def __str__(self):
         return self.__repr__()
+
+    __table__args = (
+        Index('idx_task_run_state', state.sa_column),
+        Index('idx_task_run_created_at', created_at.sa_column),
+    )
 
 
 class TaskType(SQLModel, table=True):

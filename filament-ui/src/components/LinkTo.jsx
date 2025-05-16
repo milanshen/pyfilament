@@ -4,7 +4,19 @@ import { cn } from '@/lib/utils';
 
 function LinkTo({ url = null, onClick = null, disabled = false, children }) {
     const navigate = useNavigate();
-    onClick = onClick ? onClick : url ? () => navigate(url) : () => {};
+    onClick = onClick
+        ? onClick
+        : url
+          ? (event) => {
+                // Check if any modifier keys are pressed
+                if (event.metaKey || event.ctrlKey || event.shiftKey) {
+                    return;
+                } else {
+                    event.preventDefault();
+                    navigate(url);
+                }
+            }
+          : () => {};
     return (
         <div
             onClick={onClick}
@@ -13,7 +25,7 @@ function LinkTo({ url = null, onClick = null, disabled = false, children }) {
                 'cursor-not-allowed text-neutral-500 line-through': disabled,
             })}
         >
-            {children}
+            <a href={url}>{children}</a>
         </div>
     );
 }

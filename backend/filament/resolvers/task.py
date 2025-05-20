@@ -1,6 +1,5 @@
 import datetime
 
-from celery import Task
 from sqlmodel import select
 from strawberry import ID
 from werkzeug.exceptions import BadRequest, NotFound

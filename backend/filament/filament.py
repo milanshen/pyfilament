@@ -671,8 +671,8 @@ def print_task_registry():
 
 async def wait_for_remote_task_run(task_uuid, propagate=True, timeout=None):
     with anyio.fail_after(timeout):
-        async for result in generate_remote_task_run_results(task_uuid, propagate=propagate):
-            pass
+        # TODO: propagate exceptions
+        await wait_for_task(task_uuid)
 
 
 async def get_remote_task_run_results(task_uuid, propagate=False, timeout=None):
@@ -691,11 +691,7 @@ async def generate_remote_task_run_results(task_uuid, propagate=False, check_sta
 
             async def _wait_for_state():
                 nonlocal task_result_json, is_final
-                while True:
-                    task_run = get_task_run_state(task_uuid)
-                    if task_run['state'] in TaskState.TERMINAL:
-                        break
-                    await anyio.sleep(check_state_interval)
+                await wait_for_task(task_uuid, check_state_interval=check_state_interval)
                 task_result_json = await get_task_result(task_uuid)
                 is_final = True
                 task_group.cancel_scope.cancel()
@@ -708,6 +704,7 @@ async def generate_remote_task_run_results(task_uuid, propagate=False, check_sta
             task_group.start_soon(_wait_for_state)
             task_group.start_soon(_wait_for_result)
 
+        # TODO: this currently fails if the task is not submitted
         assert task_result_json is not None, 'Task result is None'
         task_result = FilamentTaskResult.model_validate_json(task_result_json)
         if task_result._exception:
@@ -716,3 +713,11 @@ async def generate_remote_task_run_results(task_uuid, propagate=False, check_sta
             yield task_result._exception
         else:
             yield task_result._result
+
+
+async def wait_for_task(task_uuid, check_state_interval=1):
+    while True:
+        task_run = get_task_run_state(task_uuid)
+        if task_run['state'] in TaskState.TERMINAL:
+            break
+        await anyio.sleep(check_state_interval)

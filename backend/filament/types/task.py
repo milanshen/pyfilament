@@ -64,10 +64,6 @@ class TaskType:
         return task_runs[:99]
 
     @strawberry.field
-    async def task_run_count(self) -> int:
-        return len(self.task_runs)
-
-    @strawberry.field
     async def latest_task_run(self, info) -> TaskRun | None:
         # task_runs = sorted(self.task_runs, key=lambda x: x.created_at, reverse=True)
         # return task_runs[0] if task_runs else None

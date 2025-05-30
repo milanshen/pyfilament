@@ -116,7 +116,6 @@ const GET_TASK_TYPES = gql`
             id
             name
             funcAddress
-            taskRunCount
             latestTaskRun {
                 id
                 taskUuid

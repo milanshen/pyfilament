@@ -6,6 +6,7 @@ import json
 import logging
 import math
 import pickle
+import random
 import traceback
 from contextlib import asynccontextmanager, contextmanager
 from uuid import uuid4
@@ -284,7 +285,8 @@ class FilamentTaskRun(FilamentBaseModel):
                         self._logger.exception(e)
                         transition_state(self.uuid, TaskState.RETRYING)
                         if self.config.delay:
-                            await anyio.sleep(self.config.delay * self.config.backoff_base**i)
+                            sleep_time = self.config.delay * self.config.backoff_base**i * random.uniform(1.0, 1.5)
+                            await anyio.sleep(sleep_time)
                     else:
                         raise
 

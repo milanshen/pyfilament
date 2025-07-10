@@ -1,7 +1,6 @@
 import logging
 
-import redis
-import redis.asyncio
+from redis import ResponseError
 
 from filament.redis_utils import r
 
@@ -31,7 +30,7 @@ async def setup_queue(task_type):
     try:
         logger.info(f'creating group {group_name} for stream {stream_name}')
         await r.xgroup_create(stream_name, group_name, id='0', mkstream=True)
-    except redis.ResponseError as e:
+    except ResponseError as e:
         # there might be a race condition where two workers try to create the same group
         if 'BUSYGROUP Consumer Group name already exists' not in str(e):
             raise

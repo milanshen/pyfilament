@@ -1,10 +1,11 @@
 import json
 import logging
-from datetime import datetime
 
 from filament.redis_utils import r_sync
 
 logger = logging.getLogger(__name__)
+
+MAX_LOGS_TTL = 3600 * 24 * 3
 
 
 class JSONFormatter(logging.Formatter):
@@ -19,19 +20,16 @@ class JSONFormatter(logging.Formatter):
 
 
 class RedisHandler(logging.Handler):
-    def __init__(self, key_prefix='filament_log', max_length=None):
+    def __init__(self, key_prefix='filament_log'):
         super().__init__()
         self.redis = r_sync
         self.key_prefix = key_prefix
-        self.max_length = max_length
 
     def emit(self, record):
         try:
             msg = self.format(record)
             redis_key = f'{self.key_prefix}:{record.name}'
             self.redis.rpush(redis_key, msg)
-            if self.max_length:
-                self.redis.ltrim(redis_key, -self.max_length, -1)
-            # logger.debug(f'Log message pushed to Redis list: {redis_key} {msg}')
+            self.redis.expire(redis_key, MAX_LOGS_TTL)
         except Exception:
             self.handleError(record)

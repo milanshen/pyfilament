@@ -13,5 +13,5 @@ REDIS_PORT = os.getenv('FILAMENT_REDIS_PORT', 6379)
 REDIS_DB = os.getenv('FILAMENT_REDIS_DB', 0)
 
 
-r = RedisAsync(host=REDIS_HOST, port=REDIS_PORT, db=REDIS_DB, decode_responses=True)
-r_sync = RedisSync(host=REDIS_HOST, port=REDIS_PORT, db=REDIS_DB, decode_responses=True)
+r = RedisAsync(host=REDIS_HOST, port=REDIS_PORT, db=REDIS_DB, decode_responses=True, socket_connect_timeout=10)
+r_sync = RedisSync(host=REDIS_HOST, port=REDIS_PORT, db=REDIS_DB, decode_responses=True, socket_connect_timeout=10)

@@ -51,7 +51,7 @@ from filament.task_state import (
 from filament.task_state import (
     get_task_run as get_task_run_state,
 )
-from filament.utils import get_arg_name, get_function_type
+from filament.utils import get_arg_name, get_function_type, json_encode_safe
 from filament.utils_dependency import (
     get_frame_task_run,
     register_frame,
@@ -483,7 +483,7 @@ class FilamentTaskResult(FilamentBaseModel):
 
     def __init__(self, result=None, exception=None, **kwargs):
         if result is not None:
-            kwargs['result_json'] = json.dumps(result)
+            kwargs['result_json'] = json.dumps(json_encode_safe(result))
         if exception is not None:
             kwargs['exception_json'] = json.dumps(
                 {

@@ -7,7 +7,8 @@ from strawberry.extensions import SchemaExtension
 from strawberry.fastapi import GraphQLRouter
 
 import filament.resolvers.task as task_resolver
-from filament.db_models import Base, session_scope
+from filament.db_models import Base
+from filament.db_session import session_scope
 from filament.types.task import TaskRun, TaskType
 
 logger = logging.getLogger(__name__)

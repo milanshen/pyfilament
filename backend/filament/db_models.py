@@ -1,15 +1,11 @@
-import logging
-import os
 import uuid
-from contextlib import contextmanager
 from datetime import datetime
 from enum import Enum
 
-from dotenv import load_dotenv
 from pytz import timezone
-from sqlalchemy import Index, String, null
+from sqlalchemy import Index, String
 from sqlalchemy.orm import declarative_base
-from sqlmodel import TIMESTAMP, Column, Field, Relationship, Session, create_engine, text
+from sqlmodel import TIMESTAMP, Column, Field, Relationship
 from sqlmodel import SQLModel as BaseSQLModel
 
 Base = declarative_base()
@@ -17,15 +13,6 @@ Base = declarative_base()
 
 class SQLModel(BaseSQLModel, registry=Base.registry):
     pass
-
-
-logger = logging.getLogger(__name__)
-
-load_dotenv()
-DATABASE_URL = os.getenv('FILAMENT_DB_URI', 'sqlite://filament.db')
-engine = create_engine(DATABASE_URL, pool_size=10, max_overflow=100)
-
-REDIS_KEY_PREFIX = 'task_run:'
 
 
 class TaskState(str, Enum):
@@ -105,24 +92,3 @@ class TaskRunStateTransition(SQLModel, table=True):
     to_state: str
     state_since: datetime = Field(default_factory=get_utc_now, sa_column=Column(TIMESTAMP(timezone=True)))
     task_run: 'TaskRun' = Relationship(back_populates='state_transitions')
-
-
-# SQLModel.metadata.create_all(engine)
-
-
-def get_session(autoflush=True):
-    return Session(engine, autoflush=autoflush)
-
-
-@contextmanager
-def session_scope(commit=True, autoflush=True):
-    session = get_session(autoflush=autoflush)
-    try:
-        yield session
-        if commit:
-            session.commit()
-    except Exception:
-        session.rollback()
-        raise
-    finally:
-        session.close()

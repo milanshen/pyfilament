@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 
 load_dotenv()
 DATABASE_URL = os.getenv('FILAMENT_DB_URI', 'sqlite://filament.db')
-engine = create_engine(DATABASE_URL)
+engine = create_engine(DATABASE_URL, pool_size=10, max_overflow=100)
 
 REDIS_KEY_PREFIX = 'task_run:'
 

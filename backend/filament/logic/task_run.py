@@ -2,7 +2,7 @@ from filament.db_models import TaskRun, TaskState
 from filament.task_state import transition_state
 
 
-def cancel_task_run(task_run: TaskRun) -> TaskRun:
+def cancel_task_run(task_run: TaskRun):
     if task_run.state in TaskState.TERMINAL:
         return task_run
     transition_state(task_run.task_uuid, TaskState.CANCELLED)

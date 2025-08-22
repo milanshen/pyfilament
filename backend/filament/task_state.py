@@ -110,5 +110,5 @@ def set_parent_task_uuid(task_uuid, parent_task_uuid):
 def get_parent_task_uuid(task_uuid):
     with session_scope() as session:
         query = session.query(TaskRun).where(TaskRun.task_uuid == task_uuid)
-        task_run = query.one()
+        task_run = query.one_or_none()
         return task_run.parent_task_uuid if task_run else None

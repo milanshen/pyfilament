@@ -72,7 +72,7 @@ async def stonith(max_heartbeat_seconds: int, batch_size: int = 100):
 async def delete_old_task_runs(days: int = 30, batch_size: int = 100):
     with session_scope() as session:
         while True:
-            query = session.query(TaskRun).where(TaskRun.created_at < datetime.now() - timedelta(days=days))
+            query = session.query(TaskRun).where(TaskRun.created_at < datetime.now(timezone.utc) - timedelta(days=days))
             task_runs = query.limit(batch_size).all()
             logger.info(f'Found {len(task_runs)} task runs to delete')
             any_age = None

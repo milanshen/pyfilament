@@ -5,7 +5,7 @@ from filament.redis_utils import r_sync
 
 logger = logging.getLogger(__name__)
 
-MAX_LOGS_TTL = 3600 * 24 * 3
+MAX_LOGS_TTL = 3600 * 24 * 14
 
 
 class JSONFormatter(logging.Formatter):

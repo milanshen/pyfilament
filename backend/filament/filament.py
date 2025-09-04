@@ -331,6 +331,7 @@ class FilamentTaskRun(FilamentBaseModel):
             key = cache_key(self.type._func, self._get_call_parameters())
             if await cache_has_key(key) and not self.config.refresh_cache:
                 result = await cache_get(key)
+                await anyio.sleep(random.uniform(0.1, 2.0))
                 transition_state(self.uuid, TaskState.CACHED)
                 return result
             result = await func(*args, **kwargs)

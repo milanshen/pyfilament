@@ -5,7 +5,7 @@ from filament.redis_utils import r
 
 CACHE_KEY_PREFIX = 'cache:'
 
-DEFAULT_TTL = 3600
+DEFAULT_TTL = 60 * 60 * 24
 
 
 def get_key(key):

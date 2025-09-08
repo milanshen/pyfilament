@@ -285,19 +285,18 @@ class FilamentTaskRun(FilamentBaseModel):
             yield
         else:
             has_parent_frame = get_parent_task_uuid(self.uuid) is not None
-            if has_parent_frame:
-                with sentry_sdk.start_span(op='filament.task_run', name=self.type.name):
-                    yield
-            else:
-                with sentry_sdk.new_scope() as scope:
-                    scope.set_tag('filament.task_run.uuid', self.uuid)
-                    scope.set_tag('filament.task_run.type.func_address', self.type.func_address)
-                    with scope.start_transaction(op='filament.task_run', name=self.type.name):
-                        try:
-                            yield
-                        except Exception as e:
+            start_sentry_context = sentry_sdk.start_span if has_parent_frame else sentry_sdk.start_transaction
+            with sentry_sdk.new_scope() as scope:
+                scope.set_tag('filament.task_run.uuid', self.uuid)
+                scope.set_tag('filament.task_run.type.func_address', self.type.func_address)
+                with start_sentry_context(op='filament.task_run', name=self.type.name):
+                    try:
+                        yield
+                    except Exception as e:
+                        if not (hasattr(e, 'is_sentry_reported') and e.is_sentry_reported):
                             scope.capture_exception(e)
-                            raise
+                            e.is_sentry_reported = True
+                        raise
 
     def _retry(self, func):
         @functools.wraps(func)

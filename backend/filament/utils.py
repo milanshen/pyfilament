@@ -77,7 +77,11 @@ def json_encode_safe(obj, max_list_size=32, max_dict_size=64, max_bytes_size=102
     elif isinstance(obj, PolarsDataFrame):
         return json_encode_safe(obj.to_dicts())
     elif isinstance(obj, bytes):
-        return f'0x{obj.hex()}'
+        content = f'0x{obj.hex()}'
+        should_trim = len(obj) > max_bytes_size * 2
+        if should_trim:
+            return content[:max_bytes_size] + f'... (+{len(obj) - max_bytes_size})'
+        return content
     elif isinstance(obj, str):
         should_trim = len(obj) > max_bytes_size * 2
         if should_trim:

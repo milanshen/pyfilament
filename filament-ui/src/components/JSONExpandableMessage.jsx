@@ -1,7 +1,9 @@
+import _ from 'lodash';
 import { useEffect, useState } from 'react';
 
 import { LinkTo } from '@/components/LinkTo';
 import { cn } from '@/lib/utils';
+import { deepJsonParse } from '@/utils/jsonUtils';
 
 function preWrap(message, maxCharacters = 80) {
     if (!maxCharacters) {
@@ -26,14 +28,8 @@ function JSONExpandableMessage({ message, isExpanded: initIsExpanded, className,
         setIsExpanded(initIsExpanded);
     }, [initIsExpanded]);
 
-    let messageJson = null;
-    try {
-        messageJson = JSON.parse(message);
-    } catch (e) {
-        messageJson = null;
-    }
-    const isJson = messageJson !== null;
-    if (!isJson) {
+    let messageJson = deepJsonParse(message);
+    if (_.isString(messageJson)) {
         return <div>{message}</div>;
     }
 

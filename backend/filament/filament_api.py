@@ -1,3 +1,7 @@
+from filament.setup_logging import setup_logging
+
+"""import logging first"""
+
 import json
 import logging
 
@@ -9,16 +13,11 @@ from strawberry.fastapi import GraphQLRouter
 from werkzeug.exceptions import NotFound
 
 import filament.resolvers.task as task_resolver
-
-# from filament.setup_logging import setup_logging
-from centauri.init.setup_logging import setup_logging
 from filament.db_models import Base
 from filament.db_models import TaskRun as TaskRunModel
 from filament.db_session import session_scope
 from filament.types.task import TaskRun, TaskType
 from filament.utils import avoid_nans, get_json_dict, rename_keys_to_camel_case
-
-setup_logging()
 
 logger = logging.getLogger(__name__)
 

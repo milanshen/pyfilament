@@ -5,16 +5,26 @@ import { useEffect, useState } from 'react';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 
+const getFormData = (taskRun) => {
+    return taskRun ? JSON.parse(taskRun.parametersJson) : {};
+};
+
 export default function RunTaskForm({ taskType, taskRun = null, className = null, onChange = null }) {
     const schema = JSON.parse(taskType.parametersSpec);
 
-    const [formData, setFormData] = useState(taskRun ? JSON.parse(taskRun.parametersJson) : {});
-    const [jsonString, setJsonString] = useState(JSON.stringify(formData, null, 2));
+    const [formData, setFormData] = useState(getFormData(taskRun));
+    const [jsonString, setJsonString] = useState(JSON.stringify(getFormData(taskRun)));
     const [isJsonStringValid, setIsJsonStringValid] = useState(true);
 
     useEffect(() => {
-        setFormData(taskRun ? JSON.parse(taskRun.parametersJson) : {});
-        setJsonString(JSON.stringify(formData, null, 2));
+        const formData = getFormData(taskRun);
+        if (formData) {
+            setFormData(formData);
+            setJsonString(JSON.stringify(formData, null, 2));
+        } else {
+            setFormData({});
+            setJsonString('');
+        }
     }, [taskRun]);
 
     const uiSchema = {

@@ -1,10 +1,12 @@
 import datetime
+import json
 
 from strawberry import ID
 from werkzeug.exceptions import BadRequest, NotFound
 
 from filament.db_models import TaskRun as TaskRunModel
 from filament.db_models import TaskType as TaskTypeModel
+from filament.filament import FilamentTaskType, lookup
 from filament.logic.task_run import cancel_task_run as logic_cancel_task_run
 from filament.types.task import TaskRun, TaskType
 
@@ -68,3 +70,15 @@ async def get_task_runs(self, info, task_type_id: ID, states: list[str] | None =
         query = query.where(TaskRunModel.state.in_(states))
     task_runs = query.order_by(TaskRunModel.created_at.desc()).limit(99).all()
     return task_runs
+
+
+async def run_task(self, info, task_type_id: ID, parameters_json: str) -> TaskRun:
+    session = info.context['session']
+    task_type = session.query(TaskTypeModel).where(TaskTypeModel.id == task_type_id).one()
+    func_address = task_type.func_address
+    filament_task_type = lookup(func_address)
+    parameters = json.loads(parameters_json)
+    parameters.update({'start_immediately': True})
+    filament_task_run = filament_task_type._request(task_args=[], task_kwargs=parameters)
+    task_run = session.query(TaskRunModel).where(TaskRunModel.task_uuid == filament_task_run.uuid).one()
+    return task_run

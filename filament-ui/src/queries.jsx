@@ -34,6 +34,8 @@ const GET_TASK_RUN = gql`
                 id
                 name
                 funcAddress
+                parametersSpec
+                resultSpec
             }
             stateTransitions {
                 id
@@ -77,6 +79,8 @@ const GET_TASK_TYPE = gql`
             id
             name
             funcAddress
+            parametersSpec
+            resultSpec
             taskRuns {
                 id
                 taskUuid
@@ -137,6 +141,14 @@ const CANCEL_TASK_RUN = gql`
     }
 `;
 
+const RUN_TASK = gql`
+    mutation RunTask($taskTypeId: ID!, $parametersJson: String!) {
+        runTask(taskTypeId: $taskTypeId, parametersJson: $parametersJson) {
+            id
+        }
+    }
+`;
+
 export {
     CANCEL_TASK_RUN,
     GET_TASK_RUN,
@@ -145,4 +157,5 @@ export {
     GET_TASK_RUNS,
     GET_TASK_TYPE,
     GET_TASK_TYPES,
+    RUN_TASK,
 };

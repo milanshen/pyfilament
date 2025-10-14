@@ -592,6 +592,9 @@ class FilamentTaskType(FilamentBaseModel):
             await publish_task_result(task_result, is_final=True, message_id=message_id)
 
     def request(self, *task_args, **task_kwargs):
+        return self._request(task_args, task_kwargs)
+
+    def _request(self, task_args: list, task_kwargs: dict) -> FilamentTaskRun:
         task_run = FilamentRemoteTaskRun(
             type=self,
             task_args=task_args,
@@ -699,7 +702,10 @@ def task(*wrapper_args, **wrapper_kwargs):
     return get_wrapper
 
 
-def lookup(task_address):
+def lookup(task_address: str) -> FilamentTaskType:
+    if task_address not in TASK_TYPE_REGISTRY:
+        module_name, func_name = task_address.split(':')
+        __import__(module_name, fromlist=[func_name])
     assert task_address in TASK_TYPE_REGISTRY, f'Task {task_address} not found'
     return TASK_TYPE_REGISTRY.get(task_address)
 

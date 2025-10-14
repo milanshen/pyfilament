@@ -12,7 +12,7 @@ import TaskRunBreadcrumbs from '@/components/TaskRunBreadcrumbs';
 import TaskRunDetails from '@/components/TaskRunDetails';
 import { GET_TASK_RUN } from '@/queries';
 
-function TaskRunPage() {
+export default function TaskRunPage() {
     const { taskRunId } = useParams();
     const { refetch: refetchTaskRun } = useQuery(GET_TASK_RUN, { skip: true });
     const [selectedTask, setSelectedTask] = useState(null);
@@ -85,5 +85,3 @@ function TaskRunPage() {
         </TaskContext.Provider>
     );
 }
-
-export default TaskRunPage;

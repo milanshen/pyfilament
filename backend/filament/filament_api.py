@@ -7,9 +7,14 @@ from strawberry.extensions import SchemaExtension
 from strawberry.fastapi import GraphQLRouter
 
 import filament.resolvers.task as task_resolver
+
+# from filament.setup_logging import setup_logging
+from centauri.init.setup_logging import setup_logging
 from filament.db_models import Base
 from filament.db_session import session_scope
 from filament.types.task import TaskRun, TaskType
+
+setup_logging()
 
 logger = logging.getLogger(__name__)
 
@@ -52,6 +57,7 @@ class Query:
 @strawberry.type
 class Mutation:
     cancel_task_run: TaskRun = strawberry.field(resolver=task_resolver.cancel_task_run)
+    run_task: TaskRun = strawberry.field(resolver=task_resolver.run_task)
 
 
 schema = strawberry.Schema(

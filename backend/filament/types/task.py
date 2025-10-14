@@ -57,6 +57,8 @@ class TaskType:
     id: int
     func_address: str
     name: str | None
+    parameters_spec: str | None
+    result_spec: str | None
 
     @strawberry.field
     async def task_runs(self, info) -> list[TaskRun]:

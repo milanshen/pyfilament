@@ -5,6 +5,7 @@ import ExpandableMessage from '@/components/ExpandableMessage';
 import HumanTime from '@/components/HumanTime';
 import { LinkTo } from '@/components/LinkTo';
 import Panel from '@/components/Panel';
+import RunDialogButton from '@/components/RunDialogButton';
 import StateBadge from '@/components/StateBadge';
 import TaskContext from '@/components/TaskContext';
 import TaskLink from '@/components/TaskLink';
@@ -47,13 +48,14 @@ export default function TaskRunDetails({ taskRun }) {
                 <div className="text-right text-neutral-500">Result</div>
                 <div>{taskRun.resultJson ? <ExpandableMessage message={taskRun.resultJson} /> : 'N/A'}</div>
                 <div className="text-right text-neutral-500">Actions</div>
-                <div>
+                <div className="flex items-center gap-2">
                     <LinkTo
                         onClick={() => cancelMutate()}
                         disabled={cancelMutation.isLoading || isTerminalState(taskRun.state)}
                     >
                         [Cancel]
                     </LinkTo>
+                    <RunDialogButton taskType={taskRun.taskType} taskRun={taskRun} buttonText="Retry" />
                 </div>
             </div>
         </Panel>

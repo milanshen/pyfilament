@@ -6,6 +6,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import ExpandableMessage from '@/components/ExpandableMessage';
 import HumanTime from '@/components/HumanTime';
 import { LinkTo } from '@/components/LinkTo';
+import RunDialogButton from '@/components/RunDialogButton';
 import StateBadge from '@/components/StateBadge';
 import TaskContext from '@/components/TaskContext';
 import TaskLink from '@/components/TaskLink';
@@ -64,7 +65,8 @@ function TaskTypePage() {
                 </div>
                 <div className="flex justify-between">
                     <div className="text-2xl font-bold">Task Runs</div>
-                    <div>
+                    <div className="flex items-center gap-2">
+                        <RunDialogButton taskType={taskType} />
                         <Select value={stateFilter} onValueChange={setStateFilter}>
                             <SelectTrigger>
                                 <SelectValue placeholder="state" />

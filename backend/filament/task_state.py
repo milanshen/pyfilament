@@ -68,8 +68,6 @@ def is_optional(type_):
 
 
 def get_parameters_spec(func, func_name=None, class_=None) -> str | None:
-    if 'generate_writeup_text_element' in func.__name__:
-        pass
     signature = inspect.signature(func)
     allowed_types = {}
     for param_name, param in signature.parameters.items():
@@ -77,7 +75,7 @@ def get_parameters_spec(func, func_name=None, class_=None) -> str | None:
         if param.kind in (param.VAR_POSITIONAL, param.VAR_KEYWORD):
             continue
         allowed_type = None
-        if param_name == 'self' and class_ is not None and issubclass(class_, pydantic.BaseModel):
+        if param_name == 'self' and isinstance(class_, type) and issubclass(class_, pydantic.BaseModel):
             allowed_type = class_
         if param.annotation != inspect.Signature.empty:
             input_type = param.annotation
@@ -91,8 +89,6 @@ def get_parameters_spec(func, func_name=None, class_=None) -> str | None:
             else:
                 allowed_types[param_name] = Optional[allowed_type]
         elif is_required:
-            if 'agentic' in func_name:
-                pass
             return None
 
     if func_name is None:
@@ -114,7 +110,7 @@ def get_result_spec(func) -> str | None:
     signature = inspect.signature(func)
     if signature.return_annotation != inspect.Signature.empty:
         output_format = signature.return_annotation
-        if issubclass(output_format, pydantic.BaseModel):
+        if isinstance(output_format, type) and issubclass(output_format, pydantic.BaseModel):
             try:
                 return json.dumps(signature.return_annotation.model_json_schema(), separators=(',', ':'), default=str)
             except pydantic.errors.PydanticInvalidForJsonSchema:

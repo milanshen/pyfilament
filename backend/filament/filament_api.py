@@ -55,6 +55,7 @@ class Query:
     get_task_type: TaskType = strawberry.field(resolver=task_resolver.get_task_type)
     get_task_types: list[TaskType] = strawberry.field(resolver=task_resolver.get_task_types)
     get_task_runs: list[TaskRun] = strawberry.field(resolver=task_resolver.get_task_runs)
+    get_task_runs_by_ids: list[TaskRun] = strawberry.field(resolver=task_resolver.get_task_runs_by_ids)
     get_task_types_by_ids: list[TaskType] = strawberry.field(resolver=task_resolver.get_task_types_by_ids)
     get_task_type_stack_runs: list[TaskRun] = strawberry.field(resolver=task_resolver.get_task_type_stack_runs)
 
@@ -86,6 +87,16 @@ async def get_task_run(request: Request, task_run_id: int):
         task_run_dict = get_task_run_dict(task_run)
 
     return rename_keys_to_camel_case(task_run_dict)
+
+
+@app.get('/api/task-runs/{task_run_ids_str}')
+async def get_task_runs(request: Request, task_run_ids_str: str):
+    task_run_ids = [int(id) for id in task_run_ids_str.split(',')]
+    with session_scope() as session:
+        task_runs = session.query(TaskRunModel).filter(TaskRunModel.id.in_(task_run_ids)).all()
+        task_runs_id_to_dict = {task_run.id: get_task_run_dict(task_run) for task_run in task_runs}
+        task_runs_list = [task_runs_id_to_dict[id] for id in task_run_ids]
+        return rename_keys_to_camel_case(task_runs_list)
 
 
 @app.get('/api/task-run/{task_run_id}/download')

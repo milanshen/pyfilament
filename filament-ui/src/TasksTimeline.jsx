@@ -10,9 +10,9 @@ import { getSince, getTaskEnd } from '@/utils';
 import TaskContext from './components/TaskContext';
 import { getDurationHumanReadable } from './utils';
 
-const TasksTimeline = ({ taskRun }) => {
-    const start = dayjs(taskRun.createdAt).toDate().getTime();
-    const end = getTaskEnd(taskRun).getTime();
+const TasksTimeline = ({ taskRun, startTime = null, endTime = null, taskRunStack = null }) => {
+    const start = startTime ? startTime : dayjs(taskRun.createdAt).toDate().getTime();
+    const end = endTime ? endTime : getTaskEnd(taskRun).getTime();
     const spannedDuration = end - start;
 
     return (
@@ -20,7 +20,9 @@ const TasksTimeline = ({ taskRun }) => {
             <TaskTimelineRow
                 key={taskRun.id}
                 task={taskRun}
+                taskRunStack={taskRunStack}
                 minStart={start}
+                maxEnd={end}
                 spannedDuration={spannedDuration}
                 relativeTo={start}
                 isExpanded={true}
@@ -71,9 +73,24 @@ const getTitleClass = (task) => {
     return stateColors[task.state];
 };
 
-const TaskTimelineRow = ({ task, minStart, spannedDuration, relativeTo, isExpanded: initIsExpanded = null }) => {
-    const { selectedTask, setSelectedTask } = useContext(TaskContext);
-
+const TaskTimelineRow = ({
+    task,
+    minStart,
+    maxEnd,
+    spannedDuration,
+    relativeTo,
+    isExpanded: initIsExpanded = null,
+    taskRunStack = null,
+}) => {
+    const taskContext = useContext(TaskContext);
+    let selectedTask, setSelectedTask;
+    if (taskContext) {
+        selectedTask = taskContext.selectedTask;
+        setSelectedTask = taskContext.setSelectedTask;
+    } else {
+        selectedTask = null;
+        setSelectedTask = null;
+    }
     const defaultIsExpanded = task.childTasks.length <= 3 || selectedTask?.id === task.id;
     const [isExpanded, setIsExpanded] = useState(initIsExpanded !== null ? initIsExpanded : defaultIsExpanded);
 
@@ -181,15 +198,27 @@ const TaskTimelineRow = ({ task, minStart, spannedDuration, relativeTo, isExpand
             </div>
             {isExpanded && (
                 <div className="">
-                    {task.childTasks.map((childTask) => (
-                        <TaskTimelineRow
-                            key={childTask.id}
-                            task={childTask}
-                            minStart={minStart}
-                            spannedDuration={spannedDuration}
-                            relativeTo={relativeTo}
-                        />
-                    ))}
+                    {task.childTasks
+                        .filter((childTask) => {
+                            const childTaskStart = dayjs(childTask.createdAt).toDate().getTime();
+                            return childTaskStart < maxEnd;
+                        })
+                        .map((childTask) => (
+                            <TaskTimelineRow
+                                key={childTask.id}
+                                task={childTask}
+                                minStart={minStart}
+                                maxEnd={maxEnd}
+                                spannedDuration={spannedDuration}
+                                relativeTo={relativeTo}
+                                isExpanded={
+                                    taskRunStack !== null
+                                        ? taskRunStack.map((task) => task.id).includes(childTask.id)
+                                        : null
+                                }
+                                taskRunStack={taskRunStack}
+                            />
+                        ))}
                 </div>
             )}
         </div>

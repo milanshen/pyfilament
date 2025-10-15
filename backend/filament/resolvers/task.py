@@ -71,6 +71,12 @@ async def get_task_type_stack_runs(self, info, task_type_ids: list[int]):
     return task_runs
 
 
+async def get_task_runs_by_ids(self, info, ids: list[int]):
+    session = info.context['session']
+    task_runs = session.query(TaskRunModel).filter(TaskRunModel.id.in_(ids)).all()
+    return task_runs
+
+
 async def get_task_types(self, info):
     session = info.context['session']
     today = datetime.datetime.now()

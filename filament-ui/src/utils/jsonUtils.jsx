@@ -1,5 +1,19 @@
 import _ from 'lodash';
 
+export function sortKeys(obj) {
+    if (Array.isArray(obj)) {
+        return obj.map(sortKeys);
+    } else if (obj && typeof obj === 'object') {
+        return Object.keys(obj)
+            .sort()
+            .reduce((acc, key) => {
+                acc[key] = sortKeys(obj[key]);
+                return acc;
+            }, {});
+    }
+    return obj;
+}
+
 export function deepJsonParse(message) {
     if (_.isString(message)) {
         try {

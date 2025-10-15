@@ -3,6 +3,7 @@ import { BrowserRouter, Route, Routes } from 'react-router-dom';
 import ApolloContext from './ApolloContext';
 import TanstackContext from './TanstackContext';
 import TaskRunPage from './TaskRunPage';
+import TaskRunsComparePage from './TaskRunsComparePage';
 import TaskTypePage from './TaskTypePage';
 import TaskTypeStackPage from './TaskTypeStackPage';
 import TaskTypesPage from './TaskTypesPage';
@@ -19,6 +20,7 @@ function App() {
                             <Route path="/task-type/:taskTypeId" element={<TaskTypePage />} />
                             <Route path="/task-type-stack/:taskTypeIds" element={<TaskTypeStackPage />} />
                             <Route path="/task-run/:taskRunId" element={<TaskRunPage />} />
+                            <Route path="/task-runs-compare/:taskRunIds" element={<TaskRunsComparePage />} />
                         </Routes>
                     </ApolloContext>
                 </TanstackContext>

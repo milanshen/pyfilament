@@ -41,6 +41,16 @@ class TaskRun:
         logs = await get_logs(self, with_children)
         return [TaskRunLog(**log) for log in logs]
 
+    @strawberry.field
+    async def task_runs_stack(self) -> list['TaskRun']:
+        current = self
+        task_runs_stack = []
+        task_runs_stack.append(current)
+        while current.parent_task:
+            task_runs_stack.append(current.parent_task)
+            current = current.parent_task
+        return reversed(task_runs_stack)
+
 
 @strawberry.type
 class TaskRunStateTransition:

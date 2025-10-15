@@ -178,12 +178,44 @@ const GET_TASK_TYPE_STACK_RUNS = gql`
     }
 `;
 
+const GET_TASK_RUNS_BY_IDS = gql`
+    query GetTaskRunsByIds($ids: [Int!]!) {
+        getTaskRunsByIds(ids: $ids) {
+            id
+            taskUuid
+            name
+            createdAt
+            state
+            stateSince
+            heartbeat
+            runCount
+            parentTaskUuid
+            parametersJson
+            resultJson
+            taskType {
+                id
+                name
+            }
+            stateTransitions {
+                id
+                fromState
+                toState
+                stateSince
+            }
+            taskRunsStack {
+                id
+            }
+        }
+    }
+`;
+
 export {
     CANCEL_TASK_RUN,
     GET_TASK_RUN,
     GET_TASK_RUN_BREADCRUMB,
     GET_TASK_RUN_LOGS,
     GET_TASK_RUNS,
+    GET_TASK_RUNS_BY_IDS,
     GET_TASK_TYPE,
     GET_TASK_TYPE_STACK_RUNS,
     GET_TASK_TYPES,

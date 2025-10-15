@@ -56,14 +56,14 @@ function JSONExpandableMessage({ message, isExpanded: initIsExpanded, className,
             </div>
             <div className="flex justify-end gap-2">
                 <span
-                    className="cursor-pointer hover:underline text-blue-500"
+                    className="cursor-pointer text-blue-500 hover:underline"
                     onClick={() => {
                         navigator.clipboard.writeText(json);
                     }}
                 >
                     [Copy]
                 </span>
-                <LinkTo onClick={() => setIsExpanded(true)}>[Show JSON]</LinkTo>
+                <LinkTo onClick={() => setIsExpanded(true)}>[Format JSON]</LinkTo>
             </div>
         </div>
     ) : (

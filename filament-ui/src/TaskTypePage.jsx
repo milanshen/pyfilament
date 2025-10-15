@@ -85,13 +85,13 @@ function TaskTypePage() {
                 <div className="flex flex-col gap-4">
                     {taskRuns.map((taskRun) => (
                         <div key={taskRun.id} className="flex items-start gap-4 rounded bg-gray-100 p-4">
-                            <div className="flex flex-1 gap-4">
+                            <div className="flex min-w-0 flex-1 gap-4">
                                 <div className="flex-none">
                                     <TaskLink taskRun={taskRun} />
                                 </div>
-                                <div className="flex-1">
+                                <div className="min-w-0 flex-1">
                                     {taskRun.parametersJson && (
-                                        <ExpandableMessage message={taskRun.parametersJson} limit={512} />
+                                        <ExpandableMessage message={taskRun.parametersJson} enableExpand={true} />
                                     )}
                                 </div>
                             </div>

@@ -22,7 +22,7 @@ export default function TaskRunDetails({ taskRun }) {
     });
     return (
         <Panel name="Details" className="flex-1">
-            <div className="grid grid-cols-[80px_1fr] gap-x-4">
+            <div className="grid grid-cols-[80px_minmax(0,1fr)] gap-x-4">
                 <div className="text-right text-neutral-500">Task</div>
                 <div className="break-all">
                     <TaskLink taskRun={taskRun} />

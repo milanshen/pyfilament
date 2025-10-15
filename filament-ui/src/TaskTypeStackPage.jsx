@@ -14,17 +14,21 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 import { GET_TASK_TYPES_BY_IDS, GET_TASK_TYPE_STACK_RUNS } from './queries';
+import { getStates } from './utils/states';
 
 function TaskTypeStackPage() {
     const { taskTypeIds: taskTypeIdsString } = useParams();
     const taskTypeIds = taskTypeIdsString.split(',').map((id) => parseInt(id));
+    const [stateFilter, setStateFilter] = useState('all');
 
     if (taskTypeIds.length === 0) {
         return <p>No task type ids provided</p>;
     }
 
     const getTaskTypesByIdsQuery = useQuery(GET_TASK_TYPES_BY_IDS, { variables: { ids: taskTypeIds } });
-    const getTaskTypeStackRunsQuery = useQuery(GET_TASK_TYPE_STACK_RUNS, { variables: { taskTypeIds } });
+    const getTaskTypeStackRunsQuery = useQuery(GET_TASK_TYPE_STACK_RUNS, {
+        variables: { taskTypeIds, states: getStates(stateFilter) },
+    });
 
     if (getTaskTypesByIdsQuery.loading || getTaskTypeStackRunsQuery.loading) {
         return <p>Loading...</p>;
@@ -37,11 +41,17 @@ function TaskTypeStackPage() {
     const taskTypes = getTaskTypesByIdsQuery.data.getTaskTypesByIds;
     const taskRuns = _.sortBy(getTaskTypeStackRunsQuery.data.getTaskTypeStackRuns, ['createdAt']).reverse();
 
-    return <_TaskTypeStackPage taskTypes={taskTypes} taskRuns={taskRuns} />;
+    return (
+        <_TaskTypeStackPage
+            taskTypes={taskTypes}
+            taskRuns={taskRuns}
+            stateFilter={stateFilter}
+            setStateFilter={setStateFilter}
+        />
+    );
 }
 
-function _TaskTypeStackPage({ taskTypes, taskRuns }) {
-    const [stateFilter, setStateFilter] = useState('all');
+function _TaskTypeStackPage({ taskTypes, taskRuns, stateFilter, setStateFilter }) {
     const [compareTaskRunIds, setCompareTaskRunIds] = useState([]);
 
     const addToCompare = (taskRunId) => {

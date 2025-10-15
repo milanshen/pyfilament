@@ -2,7 +2,7 @@ import json
 import logging
 
 import strawberry
-from fastapi import Depends, FastAPI, Request
+from fastapi import Depends, FastAPI, Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
 from strawberry.extensions import SchemaExtension
 from strawberry.fastapi import GraphQLRouter
@@ -85,6 +85,24 @@ async def get_task_run(request: Request, task_run_id: int):
         task_run_dict = get_task_run_dict(task_run)
 
     return rename_keys_to_camel_case(task_run_dict)
+
+
+@app.get('/api/task-run/{task_run_id}/download')
+async def download_task_run(request: Request, task_run_id: int):
+    with session_scope() as session:
+        task_run = session.get(TaskRunModel, task_run_id)
+        if task_run is None:
+            raise NotFound(f'TaskRun with ID {task_run_id} not found')
+        task_run_dict = get_task_run_dict(task_run)
+
+    file_content = json.dumps(rename_keys_to_camel_case(task_run_dict), indent=2).encode('utf-8')
+    filename = f'task_run_{task_run_id}.json'
+    headers = {'Content-Disposition': f'attachment; filename="{filename}"'}
+    return Response(
+        content=file_content,
+        media_type='application/json',
+        headers=headers,
+    )
 
 
 def get_task_run_dict(task_run: TaskRunModel) -> dict:

@@ -12,14 +12,7 @@ import TaskLink from '@/components/TaskLink';
 import { CANCEL_TASK_RUN } from '@/queries';
 import { getDurationHumanReadable, getTaskDuration, isTerminalState } from '@/utils';
 
-export default function TaskRunDetails({ taskRun }) {
-    const { fetchTaskRunTree } = useContext(TaskContext);
-    const [cancelMutate, cancelMutation] = useMutation(CANCEL_TASK_RUN, {
-        variables: { id: taskRun.id },
-        onCompleted: () => {
-            fetchTaskRunTree.refetch();
-        },
-    });
+export default function TaskRunDetails({ taskRun, withActions = true }) {
     return (
         <Panel name="Details" className="flex-1">
             <div className="grid grid-cols-[80px_minmax(0,1fr)] gap-x-4">
@@ -47,17 +40,38 @@ export default function TaskRunDetails({ taskRun }) {
                 <div>{taskRun.parametersJson ? <ExpandableMessage message={taskRun.parametersJson} /> : 'N/A'}</div>
                 <div className="text-right text-neutral-500">Result</div>
                 <div>{taskRun.resultJson ? <ExpandableMessage message={taskRun.resultJson} /> : 'N/A'}</div>
-                <div className="text-right text-neutral-500">Actions</div>
-                <div className="flex items-center gap-2">
-                    <LinkTo
-                        onClick={() => cancelMutate()}
-                        disabled={cancelMutation.isLoading || isTerminalState(taskRun.state)}
-                    >
-                        [Cancel]
-                    </LinkTo>
-                    <RunDialogButton taskType={taskRun.taskType} taskRun={taskRun} buttonText="Retry" />
-                </div>
+                {withActions && (
+                    <>
+                        <div className="text-right text-neutral-500">Actions</div>
+                        <TaskRunDetailsActions taskRun={taskRun} />
+                    </>
+                )}
             </div>
         </Panel>
+    );
+}
+
+function TaskRunDetailsActions({ taskRun }) {
+    const { fetchTaskRunTree } = useContext(TaskContext);
+    const [cancelMutate, cancelMutation] = useMutation(CANCEL_TASK_RUN, {
+        variables: { id: taskRun.id },
+        onCompleted: () => {
+            fetchTaskRunTree.refetch();
+        },
+    });
+
+    return (
+        <div className="flex items-center gap-2">
+            <LinkTo
+                onClick={() => cancelMutate()}
+                disabled={cancelMutation.isLoading || isTerminalState(taskRun.state)}
+            >
+                [Cancel]
+            </LinkTo>
+            <RunDialogButton taskType={taskRun.taskType} taskRun={taskRun} buttonText="Retry" />
+            <LinkTo url={`/api/task-run/${taskRun.id}/download`} isDownload={true}>
+                [Download]
+            </LinkTo>
+        </div>
     );
 }

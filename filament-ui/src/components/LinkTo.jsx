@@ -6,7 +6,7 @@ import { useNavigate } from 'react-router-dom';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 
-function LinkTo({ url = null, onClick = null, disabled = false, children }) {
+function LinkTo({ url = null, onClick = null, disabled = false, isDownload = false, children }) {
     const navigate = useNavigate();
 
     const [isLoading, setIsLoading] = useState(false);
@@ -29,7 +29,7 @@ function LinkTo({ url = null, onClick = null, disabled = false, children }) {
         } else if (url) {
             if (event.metaKey || event.ctrlKey || event.shiftKey) {
                 return;
-            } else {
+            } else if (!isDownload) {
                 event.preventDefault();
                 navigate(url);
             }

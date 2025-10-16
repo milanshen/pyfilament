@@ -13,7 +13,7 @@ function ExpandableMessage({ message, enableDialog = true, enableExpand = false 
             {isExpanded ? (
                 <JSONExpandableMessage message={message} isExpanded={true} />
             ) : (
-                <div className="truncate">{message}</div>
+                <div className="line-clamp-5 break-all">{message}</div>
             )}
             <div className="flex justify-end gap-2">
                 {enableDialog && <LinkTo onClick={() => setIsDialogOpen(true)}>[Open]</LinkTo>}

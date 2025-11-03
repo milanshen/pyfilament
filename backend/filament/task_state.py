@@ -33,17 +33,19 @@ def set_heartbeat(task_uuid):
 
 
 def create_task_type_state(func_entry: FuncRegistryEntry, name=None):
+    input_json_schema = get_parameters_spec(func_entry, name)
+    output_json_schema = get_result_spec(func_entry)
     with session_scope() as session:
         session.execute(text('LOCK TABLE task_type IN EXCLUSIVE MODE'))
         query = session.query(TaskType).where(TaskType.func_address == func_entry.func_address)
         task_type = query.one_or_none()
-        input_json_schema = get_parameters_spec(func_entry, name)
-        output_json_schema = get_result_spec(func_entry)
         if task_type is not None:
             if name is not None:
                 task_type.name = name
-            task_type.parameters_spec = input_json_schema
-            task_type.result_spec = output_json_schema
+            if task_type.parameters_spec != input_json_schema:
+                task_type.parameters_spec = input_json_schema
+            if task_type.result_spec != output_json_schema:
+                task_type.result_spec = output_json_schema
         else:
             task_type = TaskType(
                 name=name,

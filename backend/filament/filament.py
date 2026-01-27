@@ -8,6 +8,7 @@ import random
 import traceback
 import types
 from contextlib import asynccontextmanager, contextmanager
+from typing import Optional, Union
 from uuid import uuid4
 
 import anyio
@@ -137,15 +138,20 @@ class FilamentTaskRun(FilamentBaseModel):
         task_kwargs,
         name=None,
         uuid=None,
-        config: 'FilamentTaskConfig' = None,
+        config: Optional[Union['FilamentTaskConfig', dict]] = None,
     ):
-        for config_name in FilamentTaskConfig.model_fields.keys():
-            if config_name in task_kwargs:
-                config_value = task_kwargs[config_name]
-                signature = inspect.signature(type._func)
-                if config_name not in signature.parameters.keys():
-                    task_kwargs.pop(config_name)
-                setattr(config, config_name, config_value)
+        if config is not None:
+            if isinstance(config, dict):
+                config = FilamentTaskConfig(**config)
+            else:
+                config = config.model_copy()
+            for config_name in FilamentTaskConfig.model_fields.keys():
+                if config_name in task_kwargs:
+                    config_value = task_kwargs[config_name]
+                    signature = inspect.signature(type._func)
+                    if config_name not in signature.parameters.keys():
+                        task_kwargs.pop(config_name)
+                    setattr(config, config_name, config_value)
 
         if uuid is None:
             uuid = str(uuid4())

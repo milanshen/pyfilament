@@ -559,7 +559,7 @@ class FilamentTaskType(FilamentBaseModel):
         message_id, filament_task_run_json = None, None
         async with anyio.create_task_group() as task_group:
 
-            async def _dequeue_task_run(cancel_scope: anyio.CancelScope):
+            async def _wait_for_dequeue_task_run(cancel_scope: anyio.CancelScope):
                 nonlocal message_id, filament_task_run_json
                 message_id, filament_task_run_json = await dequeue_task_run(self, worker_id)
                 cancel_scope.cancel()
@@ -568,7 +568,7 @@ class FilamentTaskType(FilamentBaseModel):
                 await shutdown_event.wait()
                 cancel_scope.cancel()
 
-            task_group.start_soon(_dequeue_task_run, task_group.cancel_scope)
+            task_group.start_soon(_wait_for_dequeue_task_run, task_group.cancel_scope)
             task_group.start_soon(_wait_for_shutdown, task_group.cancel_scope)
 
         return message_id, filament_task_run_json

@@ -57,3 +57,7 @@ def register_func(func: Callable, class_: type | None = None) -> FuncRegistryEnt
 
 def get_func_address(func: Callable) -> str:
     return f'{func.__module__}:{func.__qualname__}'
+
+
+def get_registered_entries() -> list[FuncRegistryEntry]:
+    return list(_FUNC_REGISTRY.entries.values())

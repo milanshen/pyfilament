@@ -38,7 +38,6 @@ from filament.task_queue import (
 from filament.task_state import (
     TaskState,
     create_task_run_state,
-    create_task_type_state,
     get_parent_task_uuid,
     is_canceled,
     set_heartbeat,
@@ -553,7 +552,6 @@ class FilamentTaskType(FilamentBaseModel):
     def model_post_init(self, __context):
         func_entry = lookup_func_entry(self.func_address)
         self._func = func_entry.func
-        create_task_type_state(func_entry, name=self.name)
 
     async def _dequeue_task_run(self, worker_id: str, shutdown_event: anyio.Event) -> tuple[str | None, str | None]:
         message_id, filament_task_run_json = None, None

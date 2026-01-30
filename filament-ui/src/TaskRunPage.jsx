@@ -2,7 +2,7 @@ import { useQuery } from '@apollo/client';
 import { useQuery as useReactQuery } from '@tanstack/react-query';
 import axios from 'axios';
 import { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useSearchParams } from 'react-router-dom';
 
 import TasksTimeline from '@/TasksTimeline';
 import Panel from '@/components/Panel';
@@ -36,11 +36,16 @@ function TaskRunPageWithUuid({ taskRunUuid }) {
 
 function TaskRunPageWithId({ taskRunId }) {
     const [selectedTask, setSelectedTask] = useState(null);
+    const [searchParams] = useSearchParams();
+    let maxChildTasks = searchParams.get('maxChildTasks') || 100;
+    let childDepth = searchParams.get('childDepth') || 3;
 
     const fetchTaskRunTree = useReactQuery({
-        queryKey: ['taskRun', 'tree', taskRunId],
+        queryKey: ['taskRun', 'tree', taskRunId, maxChildTasks, childDepth],
         queryFn: async () => {
-            const response = await axios.get(`/api/task-run/${taskRunId}`);
+            const response = await axios.get(
+                `/api/task-run/${taskRunId}?max_child_tasks=${maxChildTasks}&child_depth=${childDepth}`
+            );
             return response.data;
         },
     });

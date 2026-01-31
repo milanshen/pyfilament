@@ -38,7 +38,7 @@ function TaskRunPageWithId({ taskRunId }) {
     const [selectedTask, setSelectedTask] = useState(null);
     const [searchParams] = useSearchParams();
     let maxChildTasks = searchParams.get('maxChildTasks') || 100;
-    let childDepth = searchParams.get('childDepth') || 3;
+    let childDepth = searchParams.get('childDepth') || 10;
 
     const fetchTaskRunTree = useReactQuery({
         queryKey: ['taskRun', 'tree', taskRunId, maxChildTasks, childDepth],

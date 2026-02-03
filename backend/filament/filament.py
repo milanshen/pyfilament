@@ -49,11 +49,7 @@ from filament.task_state import (
     get_task_run as get_task_run_state,
 )
 from filament.utils import get_function_type, json_encode_safe
-from filament.utils_dependency import (
-    get_frame_task_run,
-    register_frame,
-    unregister_frame,
-)
+from filament.utils_call_stack import peek_task_run, push_task_run
 
 
 class FilamentBaseModel(BaseModel):
@@ -209,13 +205,8 @@ class FilamentTaskRun(FilamentBaseModel):
 
     @contextmanager
     def _register_frame(self):
-        stack = inspect.stack()
-        frame = stack[2].frame  # 0 is self, 1 is contextmanager, 2 is _call
-        register_frame(self, frame)
-        try:
-            yield
-        finally:
-            unregister_frame(frame)
+        push_task_run(self)
+        yield
 
     @asynccontextmanager
     async def _acquire_token_bucket(self):
@@ -666,39 +657,27 @@ class FilamentTaskType(FilamentBaseModel):
 
 
 def get_logger():
-    stack = inspect.stack()
-    for frame_info in stack:
-        frame = frame_info.frame
-        task_run = get_frame_task_run(frame)
-        if task_run:
-            return logging.getLogger(f'{task_run.type.func_address}:{task_run.uuid}')
+    task_run = peek_task_run()
+    if task_run is not None:
+        return logging.getLogger(f'{task_run.type.func_address}:{task_run.uuid}')
     # no task found, return a default logger for the caller
-    parent_frame = stack[1]
-    parent_frame_module_name = inspect.getmodule(parent_frame.frame).__name__
-    parent_frame_func_name = parent_frame.function
+    parent_frame = inspect.currentframe().f_back
+    parent_frame_module_name = parent_frame.f_globals.get('__name__', 'unknown')
+    parent_frame_func_name = parent_frame.f_code.co_name
     return logging.getLogger(f'{parent_frame_module_name}:{parent_frame_func_name}')
 
 
 def get_task_run():
-    stack = inspect.stack()
-    for frame_info in stack:
-        frame = frame_info.frame
-        task_run = get_frame_task_run(frame)
-        if task_run:
-            return task_run
+    task_run = peek_task_run()
+    if task_run is not None:
+        return task_run
     raise RuntimeError('No task found in stack')
 
 
 def detect_dependency(task_uuid):
-    stack = inspect.stack()
-    for frame_info in stack:
-        parent_frame = frame_info.frame
-        # print(f"Considering parent frame {parent_frame}")
-        parent_task_run = get_frame_task_run(parent_frame)
-        if parent_task_run:
-            # register_dependency(self.uuid, parent_task_uuid)
-            set_parent_task_uuid(task_uuid, parent_task_run.uuid)
-            break
+    parent_task_run = peek_task_run()
+    if parent_task_run is not None:
+        set_parent_task_uuid(task_uuid, parent_task_run.uuid)
 
 
 TASK_TYPE_REGISTRY = {}

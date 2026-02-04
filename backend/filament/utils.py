@@ -9,10 +9,14 @@ from dataclasses import fields as dataclasses_fields
 from dataclasses import is_dataclass
 from datetime import datetime
 
+from beartype import beartype
 from inflection import camelize
 from pandas import DataFrame as PandasDataFrame
 from polars import DataFrame as PolarsDataFrame
 from pydantic import BaseModel
+from sqlalchemy import inspect as sqlalchemy_inspect
+
+from filament.db_models import Base
 
 
 def get_arg_name(*args, **kwargs):
@@ -125,8 +129,19 @@ def rename_keys_to_camel_case(obj):
     return obj
 
 
-def get_json_dict(obj: BaseModel) -> dict:
-    return json.loads(obj.model_dump_json())
+@beartype
+def get_json_dict(obj: Base) -> dict:
+    return flat_serialize(obj)
+
+
+@beartype
+def flat_serialize(model: Base):
+    serialized = defaultdict(dict, {})
+    column_attrs = sqlalchemy_inspect(model.__class__).column_attrs
+    for key in column_attrs.keys():
+        value = getattr(model, key)
+        serialized[key] = value
+    return serialized
 
 
 def avoid_nans(obj_json: str) -> str:

@@ -3,16 +3,11 @@ from datetime import datetime
 from enum import Enum
 
 from pytz import timezone
-from sqlalchemy import Index, String
-from sqlalchemy.orm import declarative_base
-from sqlmodel import TIMESTAMP, Column, Field, Relationship
-from sqlmodel import SQLModel as BaseSQLModel
+from sqlalchemy import Column, ForeignKey, Index, Integer, String
+from sqlalchemy.orm import declarative_base, relationship
+from sqlalchemy.types import TIMESTAMP
 
 Base = declarative_base()
-
-
-class SQLModel(BaseSQLModel, registry=Base.registry):
-    pass
 
 
 class TaskState(str, Enum):
@@ -29,35 +24,34 @@ class TaskState(str, Enum):
 TaskState.TERMINAL = {TaskState.CANCELLED, TaskState.FAILURE, TaskState.SUCCESS, TaskState.CACHED}
 
 
+def get_uuid():
+    return str(uuid.uuid4())
+
+
 def get_utc_now():
     return datetime.now().astimezone(timezone('UTC'))
 
 
-class TaskRun(SQLModel, table=True):
+class TaskRun(Base):
     __tablename__ = 'task_run'
 
-    id: int = Field(default=None, primary_key=True)
-    created_at: datetime = Field(default_factory=get_utc_now, sa_column=Column(TIMESTAMP(timezone=True)))
-    task_uuid: str = Field(
-        default_factory=lambda: str(uuid.uuid4()), sa_column=Column(String, unique=True, nullable=False)
-    )
-    name: str | None = Field(default=None)
-    state: str = Field(default=TaskState.CREATED, sa_column=Column(String, nullable=False))
-    state_since: datetime = Field(default_factory=get_utc_now, sa_column=Column(TIMESTAMP(timezone=True)))
-    heartbeat: datetime = Field(default_factory=get_utc_now, sa_column=Column(TIMESTAMP(timezone=True)))
-    run_count: int = Field(default=0)
-    parent_task_uuid: str | None = Field(default=None, foreign_key='task_run.task_uuid', index=True)
+    id = Column(Integer, primary_key=True)
+    created_at = Column(TIMESTAMP(timezone=True), default=get_utc_now)
+    task_uuid = Column(String, unique=True, nullable=False, default=get_uuid)
+    name = Column(String, nullable=True)
+    state = Column(String, nullable=False, default=TaskState.CREATED)
+    state_since = Column(TIMESTAMP(timezone=True), default=get_utc_now)
+    heartbeat = Column(TIMESTAMP(timezone=True), default=get_utc_now)
+    run_count = Column(Integer, default=0, nullable=False)
+    parent_task_uuid = Column(String, ForeignKey('task_run.task_uuid'), nullable=True, index=True)
+    parameters_json = Column(String, nullable=True)
+    result_json = Column(String, nullable=True)
+    task_type_id = Column(Integer, ForeignKey('task_type.id'), index=True, nullable=False)
 
-    parameters_json: str | None = Field(default=None)
-    result_json: str | None = Field(default=None)
-
-    state_transitions: list['TaskRunStateTransition'] = Relationship(back_populates='task_run')
-    parent_task: 'TaskRun' = Relationship(
-        back_populates='child_tasks', sa_relationship_kwargs={'remote_side': 'TaskRun.task_uuid'}
-    )
-    child_tasks: list['TaskRun'] = Relationship(back_populates='parent_task')
-    task_type_id: int = Field(default=None, foreign_key='task_type.id', index=True)
-    task_type: 'TaskType' = Relationship(back_populates='task_runs')
+    state_transitions = relationship('TaskRunStateTransition', back_populates='task_run', uselist=True)
+    parent_task = relationship('TaskRun', back_populates='child_tasks', remote_side='TaskRun.task_uuid', uselist=False)
+    child_tasks = relationship('TaskRun', back_populates='parent_task', uselist=True)
+    task_type = relationship('TaskType', back_populates='task_runs', uselist=False)
 
     def __repr__(self):
         return f'TaskRun(task_uuid={self.task_uuid[-8:]}, name={self.name}, state={self.state}, state_since={self.state_since}, heartbeat={self.heartbeat}, run_count={self.run_count})'
@@ -66,31 +60,33 @@ class TaskRun(SQLModel, table=True):
         return self.__repr__()
 
     __table__args = (
-        Index('idx_task_run_state', state.sa_column),
-        Index('idx_task_run_created_at', created_at.sa_column),
-        Index('idx_task_run_state_since', state_since.sa_column),
+        Index('idx_task_run_state', state),
+        Index('idx_task_run_created_at', created_at),
+        Index('idx_task_run_state_since', state_since),
+        Index('idx_task_run_id_task_type_id_created_at', id, task_type_id, created_at),
     )
 
 
-class TaskType(SQLModel, table=True):
+class TaskType(Base):
     __tablename__ = 'task_type'
 
-    id: int = Field(default=None, primary_key=True)
-    created_at: datetime = Field(default_factory=get_utc_now, sa_column=Column(TIMESTAMP(timezone=True)))
-    name: str = Field(default=None)
-    func_address: str = Field(default=None, unique=True)
-    parameters_spec: str | None = Field(default=None)
-    result_spec: str | None = Field(default=None)
+    id = Column(Integer, primary_key=True)
+    created_at = Column(TIMESTAMP(timezone=True), default=get_utc_now)
+    name = Column(String, nullable=False)
+    func_address = Column(String, unique=True, nullable=False)
+    parameters_spec = Column(String, nullable=True)
+    result_spec = Column(String, nullable=True)
 
-    task_runs: list[TaskRun] = Relationship(back_populates='task_type')
+    task_runs = relationship('TaskRun', back_populates='task_type', uselist=True)
 
 
-class TaskRunStateTransition(SQLModel, table=True):
+class TaskRunStateTransition(Base):
     __tablename__ = 'task_run_state_transition'
 
-    id: int = Field(default=None, primary_key=True)
-    task_uuid: str = Field(default_factory=lambda: str(uuid.uuid4()), foreign_key='task_run.task_uuid', index=True)
-    from_state: str
-    to_state: str
-    state_since: datetime = Field(default_factory=get_utc_now, sa_column=Column(TIMESTAMP(timezone=True)))
-    task_run: 'TaskRun' = Relationship(back_populates='state_transitions')
+    id = Column(Integer, primary_key=True)
+    task_uuid = Column(String, ForeignKey('task_run.task_uuid'), index=True, default=get_uuid, nullable=False)
+    from_state = Column(String, nullable=False)
+    to_state = Column(String, nullable=False)
+    state_since = Column(TIMESTAMP(timezone=True), default=get_utc_now)
+
+    task_run = relationship('TaskRun', back_populates='state_transitions', uselist=False)

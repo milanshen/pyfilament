@@ -135,13 +135,13 @@ def get_json_dict(obj: Base) -> dict:
 
 
 @beartype
-def flat_serialize(model: Base):
+def flat_serialize(model: Base) -> dict:
     serialized = defaultdict(dict, {})
     column_attrs = sqlalchemy_inspect(model.__class__).column_attrs
     for key in column_attrs.keys():
         value = getattr(model, key)
         serialized[key] = value
-    return serialized
+    return dict(serialized)
 
 
 def avoid_nans(obj_json: str) -> str:

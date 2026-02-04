@@ -8,14 +8,13 @@ import pydantic
 from beartype import beartype
 from beartype.door import TypeHint, UnionTypeHint
 from inflection import camelize
-from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from filament.db_models import TaskRun, TaskRunStateTransition, TaskState, TaskType, get_utc_now
 from filament.db_session import session_scope
 from filament.func_registry import FuncRegistryEntry, get_registered_entries
 from filament.redis_semaphore import RedisSemaphore
-from filament.utils import json_encode_safe
+from filament.utils import get_json_dict, json_encode_safe
 
 logger = logging.getLogger(__name__)
 
@@ -181,7 +180,7 @@ def get_task_run(task_uuid):
     with session_scope() as session:
         query = session.query(TaskRun).where(TaskRun.task_uuid == task_uuid)
         task_run = query.one()
-        return task_run.model_dump()
+        return get_json_dict(task_run)
 
 
 def is_canceled(task_uuid):

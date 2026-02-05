@@ -101,7 +101,7 @@ async def get_task_runs_by_ids(self, info, ids: list[int]) -> list[TaskRun]:
 async def get_task_types(self, info):
     session = info.context['session']
     today = datetime.datetime.now()
-    before = today - datetime.timedelta(days=14)
+    before = today - datetime.timedelta(days=1)
     subquery = (
         select(TaskRunModel.task_type_id, func.max(TaskRunModel.id).label('task_run_id'))
         .filter(TaskRunModel.created_at > before)

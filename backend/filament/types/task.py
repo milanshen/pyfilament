@@ -7,15 +7,17 @@ from filament.db_models import TaskRun as TaskRunModel
 from filament.redis_utils import r
 
 
-async def get_logs(task_run: TaskRunModel, with_children: bool = True) -> list[dict]:
+async def get_logs(
+    task_run: TaskRunModel, with_children: bool = True, max_depth: int = 3, max_num_children: int = 100
+) -> list[dict]:
     logs = []
     redis_key = f'filament_log:{task_run.task_type.func_address}:{task_run.task_uuid}'
     range_results = await r.lrange(redis_key, 0, -1)
     for range_result in range_results:
         logs.append(json.loads(range_result))
-    if with_children:
-        for child_task in task_run.child_tasks:
-            logs.extend(await get_logs(child_task, with_children))
+    if with_children and max_depth > 0:
+        for child_task in task_run.child_tasks[:max_num_children]:
+            logs.extend(await get_logs(child_task, with_children, max_depth - 1, max_num_children))
     return sorted(logs, key=lambda x: x['timestamp'])
 
 
@@ -37,8 +39,10 @@ class TaskRun:
     result_json: str | None
 
     @strawberry.field
-    async def logs(self, with_children: bool = True) -> list['TaskRunLog']:
-        logs = await get_logs(self, with_children)
+    async def logs(
+        self, with_children: bool = True, max_depth: int = 3, max_num_children: int = 100
+    ) -> list['TaskRunLog']:
+        logs = await get_logs(self, with_children, max_depth, max_num_children)
         return [TaskRunLog(**log) for log in logs]
 
     @strawberry.field

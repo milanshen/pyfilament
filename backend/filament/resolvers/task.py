@@ -131,7 +131,13 @@ async def cancel_task_run(self, info, id: ID | None = None, task_uuid: str | Non
 
 async def get_task_runs(self, info, task_type_id: ID, states: list[str] | None = None):
     session = info.context['session']
-    query = session.query(TaskRunModel).where(TaskRunModel.task_type_id == task_type_id)
+    today = datetime.datetime.now()
+    before = today - datetime.timedelta(days=1)
+    query = (
+        session.query(TaskRunModel)
+        .where(TaskRunModel.task_type_id == task_type_id)
+        .where(TaskRunModel.created_at > before)
+    )
     if states:
         query = query.where(TaskRunModel.state.in_(states))
     task_runs = query.order_by(TaskRunModel.id.desc()).limit(99).all()

@@ -88,7 +88,7 @@ class TaskType:
         task_runs = (
             session.query(TaskRunModel)
             .where(TaskRunModel.task_type_id == self.id)
-            .order_by(TaskRunModel.created_at.desc())
+            .order_by(TaskRunModel.id.desc())
             .limit(99)
             .all()
         )

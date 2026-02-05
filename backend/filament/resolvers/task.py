@@ -77,10 +77,7 @@ async def get_task_type_stack_runs(
         query = query.where(current_model.task_type_id == task_type_id)
         last_model = current_model
     task_runs = (
-        query.where(last_model.parent_task_uuid.is_(None))
-        .order_by(TaskRunModel.created_at.desc())
-        .limit(MAX_RESULTS)
-        .all()
+        query.where(last_model.parent_task_uuid.is_(None)).order_by(TaskRunModel.id.desc()).limit(MAX_RESULTS).all()
     )
     return task_runs
 
@@ -137,7 +134,7 @@ async def get_task_runs(self, info, task_type_id: ID, states: list[str] | None =
     query = session.query(TaskRunModel).where(TaskRunModel.task_type_id == task_type_id)
     if states:
         query = query.where(TaskRunModel.state.in_(states))
-    task_runs = query.order_by(TaskRunModel.created_at.desc()).limit(99).all()
+    task_runs = query.order_by(TaskRunModel.id.desc()).limit(99).all()
     return task_runs
 
 

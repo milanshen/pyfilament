@@ -1,5 +1,3 @@
-from filament.setup_logging import setup_logging
-
 """import logging first"""
 
 import json
@@ -13,11 +11,12 @@ from strawberry.fastapi import GraphQLRouter
 from werkzeug.exceptions import NotFound
 
 import filament.resolvers.task as task_resolver
+from filament.api.logic.task_run_dict import deep_get_task_run_dict
 from filament.db_models import Base
 from filament.db_models import TaskRun as TaskRunModel
 from filament.db_session import session_scope
 from filament.types.task import TaskRun, TaskType
-from filament.utils import avoid_nans, get_json_dict, rename_keys_to_camel_case
+from filament.utils import rename_keys_to_camel_case
 
 logger = logging.getLogger(__name__)
 
@@ -84,7 +83,7 @@ async def get_task_run(request: Request, task_run_id: int, max_child_tasks: int 
         task_run = session.get(TaskRunModel, task_run_id)
         if task_run is None:
             raise NotFound(f'TaskRun with ID {task_run_id} not found')
-        task_run_dict = get_task_run_dict(task_run, max_child_tasks, child_depth)
+        task_run_dict = deep_get_task_run_dict(task_run, max_child_tasks, child_depth)
 
     return rename_keys_to_camel_case(task_run_dict)
 
@@ -98,7 +97,7 @@ async def get_task_runs(request: Request, task_run_ids_str: str, max_child_tasks
             task_run = session.get(TaskRunModel, task_run_id)
             if task_run is None:
                 raise NotFound(f'TaskRun with ID {task_run_id} not found')
-            task_runs.append(get_task_run_dict(task_run, max_child_tasks, child_depth))
+            task_runs.append(deep_get_task_run_dict(task_run, max_child_tasks, child_depth))
         return rename_keys_to_camel_case(task_runs)
 
 
@@ -108,7 +107,7 @@ async def download_task_run(request: Request, task_run_id: int, max_child_tasks:
         task_run = session.get(TaskRunModel, task_run_id)
         if task_run is None:
             raise NotFound(f'TaskRun with ID {task_run_id} not found')
-        task_run_dict = get_task_run_dict(task_run, max_child_tasks, child_depth)
+        task_run_dict = deep_get_task_run_dict(task_run, max_child_tasks, child_depth)
 
     file_content = json.dumps(rename_keys_to_camel_case(task_run_dict), indent=2).encode('utf-8')
     filename = f'task_run_{task_run_id}.json'
@@ -118,28 +117,6 @@ async def download_task_run(request: Request, task_run_id: int, max_child_tasks:
         media_type='application/json',
         headers=headers,
     )
-
-
-def get_task_run_dict(task_run: TaskRunModel, max_child_tasks: int = 100, child_depth: int = 0) -> dict:
-    task_run_dict = get_json_dict(task_run)
-    task_run_dict['task_type'] = get_json_dict(task_run.task_type)
-    if child_depth > 0:
-        sorted_child_tasks = sorted(task_run.child_tasks, key=lambda x: x.id)
-        task_run_dict['child_tasks'] = [
-            get_task_run_dict(child_task_run, max_child_tasks, child_depth - 1)
-            for child_task_run in sorted_child_tasks[:max_child_tasks]
-        ]
-    else:
-        task_run_dict['child_tasks'] = []
-    sorted_state_transitions = sorted(task_run.state_transitions, key=lambda x: x.id)
-    if task_run.parameters_json is not None:
-        task_run_dict['parameters_json'] = avoid_nans(task_run.parameters_json)
-    if task_run.result_json is not None:
-        task_run_dict['result_json'] = avoid_nans(task_run.result_json)
-    task_run_dict['state_transitions'] = [
-        get_json_dict(state_transition) for state_transition in sorted_state_transitions
-    ]
-    return task_run_dict
 
 
 class SessionMiddleware(BaseHTTPMiddleware):

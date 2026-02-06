@@ -668,13 +668,6 @@ def get_logger():
     return logging.getLogger(f'{parent_frame_module_name}:{parent_frame_func_name}')
 
 
-def get_current_task_run():
-    task_run = peek_task_run()
-    if task_run is not None:
-        return task_run
-    raise RuntimeError('No task found in stack')
-
-
 def detect_dependency(task_uuid):
     parent_task_run = peek_task_run()
     if parent_task_run is not None:

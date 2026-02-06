@@ -529,6 +529,7 @@ class FilamentTaskType(FilamentBaseModel):
         else:
             assert func_address is not None, 'func_address must be provided if func is not'
             _func = lookup_func_entry(func_address).func
+        assert inspect.iscoroutinefunction(_func) or inspect.isasyncgenfunction(_func), f'Unsupported function: {_func}'
         if name is None:
             name = func_address
         config = FilamentTaskConfig(**config_kwargs)

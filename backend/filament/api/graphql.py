@@ -3,7 +3,7 @@ from fastapi import Depends, Request
 from strawberry.extensions import SchemaExtension
 from strawberry.fastapi import GraphQLRouter
 
-import filament.resolvers.task as task_resolver
+import filament.api.resolvers.task as task_resolver
 from filament.db_models import Base
 from filament.types.task import TaskRun, TaskType
 

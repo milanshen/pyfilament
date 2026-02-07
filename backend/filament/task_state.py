@@ -1,6 +1,7 @@
 import inspect
 import json
 import logging
+from functools import wraps
 from types import NoneType
 from typing import Any, Callable, Optional
 
@@ -8,10 +9,11 @@ import pydantic
 from beartype import beartype
 from beartype.door import TypeHint, UnionTypeHint
 from inflection import camelize
-from sqlalchemy.orm import Session
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from filament.db_models import TaskRun, TaskRunStateTransition, TaskState, TaskType, get_utc_now
-from filament.db_session import session_scope
+from filament.db_session import async_session_scope
 from filament.func_registry import FuncRegistryEntry
 from filament.utils import get_json_dict, json_encode_safe
 
@@ -23,26 +25,20 @@ REDIS_KEY_PREFIX = 'task_run:'
 
 @beartype
 def with_session(func: Callable) -> Callable:
-    if inspect.iscoroutinefunction(func) or inspect.isasyncgenfunction(func):
+    assert inspect.iscoroutinefunction(func) or inspect.isasyncgenfunction(func), 'Function must be asynchronous'
 
-        async def wrapper(*args, **kwargs):
-            if ('session' in kwargs and kwargs['session'] is not None) or (
-                len(args) > 0 and isinstance(args[0], Session)
-            ):
-                return await func(*args, **kwargs)
-            else:
-                with session_scope() as session:
-                    return await func(session, *args, **kwargs)
-    else:
-
-        def wrapper(*args, **kwargs):
-            if ('session' in kwargs and kwargs['session'] is not None) or (
-                len(args) > 0 and isinstance(args[0], Session)
-            ):
-                return func(*args, **kwargs)
-            else:
-                with session_scope() as session:
-                    return func(session, *args, **kwargs)
+    @wraps(func)
+    async def wrapper(*args, **kwargs):
+        if 'session' in kwargs and isinstance(kwargs['session'], AsyncSession):
+            session = kwargs.pop('session')
+            return await func(session, *args, **kwargs)
+        if len(args) > 0 and isinstance(args[0], AsyncSession):
+            session = args[0]
+            args = args[1:]
+            return await func(session, *args, **kwargs)
+        else:
+            async with async_session_scope() as session:
+                return await func(session, *args, **kwargs)
 
     return wrapper
 
@@ -54,19 +50,19 @@ def get_key(key: str) -> str:
 
 @with_session
 @beartype
-def set_heartbeat(session: Session, task_uuid: str) -> None:
-    query = session.query(TaskRun).where(TaskRun.task_uuid == task_uuid)
-    task_run = query.one()
+async def set_heartbeat(session: AsyncSession, task_uuid: str) -> None:
+    statement = select(TaskRun).where(TaskRun.task_uuid == task_uuid)
+    task_run = (await session.execute(statement)).scalars().one()
     task_run.heartbeat = get_utc_now()
 
 
 @with_session
 @beartype
-async def create_task_type_state(session: Session, func_entry: FuncRegistryEntry, name: str | None = None) -> None:
+async def create_task_type_state(session: AsyncSession, func_entry: FuncRegistryEntry, name: str | None = None) -> None:
     input_json_schema = get_parameters_spec(func_entry, name)
     output_json_schema = get_result_spec(func_entry)
-    query = session.query(TaskType).where(TaskType.func_address == func_entry.func_address)
-    task_type = query.one_or_none()
+    statement = select(TaskType).where(TaskType.func_address == func_entry.func_address)
+    task_type = (await session.execute(statement)).scalars().one_or_none()
     if task_type is not None:
         if name is not None:
             task_type.name = name
@@ -155,16 +151,16 @@ def get_result_spec(func_entry: FuncRegistryEntry) -> str | None:
 
 @with_session
 @beartype
-def get_task_run_state(session: Session, task_uuid: str) -> TaskRun | None:
-    query = session.query(TaskRun).where(TaskRun.task_uuid == task_uuid)
-    task_run = query.one_or_none()
+async def get_task_run_state(session: AsyncSession, task_uuid: str) -> TaskRun | None:
+    statement = select(TaskRun).where(TaskRun.task_uuid == task_uuid)
+    task_run = (await session.execute(statement)).scalars().one_or_none()
     return task_run
 
 
 @with_session
 @beartype
-async def get_task_run_dict(session: Session, task_uuid: str) -> dict | None:
-    task_run = get_task_run_state(session, task_uuid)
+async def get_task_run_dict(session: AsyncSession, task_uuid: str) -> dict | None:
+    task_run = await get_task_run_state(session, task_uuid)
     if task_run is not None:
         return get_json_dict(task_run)
     return None
@@ -172,11 +168,11 @@ async def get_task_run_dict(session: Session, task_uuid: str) -> dict | None:
 
 @with_session
 @beartype
-def create_task_run_state(
-    session: Session, task_uuid: str, func_address: str, name: str | None = None, parameters: dict | None = None
+async def create_task_run_state(
+    session: AsyncSession, task_uuid: str, func_address: str, name: str | None = None, parameters: dict | None = None
 ) -> None:
-    query = session.query(TaskType).where(TaskType.func_address == func_address)
-    task_type = query.one_or_none()
+    statement = select(TaskType).where(TaskType.func_address == func_address)
+    task_type = (await session.execute(statement)).scalars().one_or_none()
     if task_type is None:
         raise ValueError(f'No task type found for func_address {func_address}')
     task_run = TaskRun(name=name, task_uuid=task_uuid, task_type_id=task_type.id)
@@ -187,9 +183,9 @@ def create_task_run_state(
 
 @with_session
 @beartype
-def transition_state(session: Session, task_uuid: str, new_state: TaskState) -> None:
-    query = session.query(TaskRun).where(TaskRun.task_uuid == task_uuid)
-    task_run = query.one()
+async def transition_state(session: AsyncSession, task_uuid: str, new_state: TaskState) -> None:
+    statement = select(TaskRun).where(TaskRun.task_uuid == task_uuid)
+    task_run = (await session.execute(statement)).scalars().one()
     old_state = task_run.state
     if old_state == new_state:
         return
@@ -205,9 +201,11 @@ def transition_state(session: Session, task_uuid: str, new_state: TaskState) -> 
 
 @with_session
 @beartype
-def set_task_result(session: Session, task_uuid: str, result: Any, exception: BaseException | None = None) -> None:
-    query = session.query(TaskRun).where(TaskRun.task_uuid == task_uuid)
-    task_run = query.one()
+async def set_task_result(
+    session: AsyncSession, task_uuid: str, result: Any, exception: BaseException | None = None
+) -> None:
+    statement = select(TaskRun).where(TaskRun.task_uuid == task_uuid)
+    task_run = (await session.execute(statement)).scalars().one()
     if exception is not None:
         result = exception
     task_run.result_json = json.dumps(json_encode_safe(result), separators=(',', ':'), default=str)
@@ -215,23 +213,23 @@ def set_task_result(session: Session, task_uuid: str, result: Any, exception: Ba
 
 @with_session
 @beartype
-def is_canceled(session: Session, task_uuid: str) -> bool:
-    query = session.query(TaskRun).where(TaskRun.task_uuid == task_uuid)
-    task_run = query.one()
+async def is_canceled(session: AsyncSession, task_uuid: str) -> bool:
+    statement = select(TaskRun).where(TaskRun.task_uuid == task_uuid)
+    task_run = (await session.execute(statement)).scalars().one()
     return task_run.state == TaskState.CANCELLED
 
 
 @with_session
 @beartype
-def set_parent_task_uuid(session: Session, task_uuid: str, parent_task_uuid: str) -> None:
-    query = session.query(TaskRun).where(TaskRun.task_uuid == task_uuid)
-    task_run = query.one()
+async def set_parent_task_uuid(session: AsyncSession, task_uuid: str, parent_task_uuid: str) -> None:
+    statement = select(TaskRun).where(TaskRun.task_uuid == task_uuid)
+    task_run = (await session.execute(statement)).scalars().one()
     task_run.parent_task_uuid = parent_task_uuid
 
 
 @with_session
 @beartype
-def get_parent_task_uuid(session: Session, task_uuid: str) -> str | None:
-    query = session.query(TaskRun).where(TaskRun.task_uuid == task_uuid)
-    task_run = query.one_or_none()
+async def get_parent_task_run_uuid(session: AsyncSession, task_uuid: str) -> str | None:
+    statement = select(TaskRun).where(TaskRun.task_uuid == task_uuid)
+    task_run = (await session.execute(statement)).scalars().one_or_none()
     return task_run.parent_task_uuid if task_run else None

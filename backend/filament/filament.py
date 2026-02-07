@@ -13,6 +13,7 @@ from uuid import uuid4
 
 import anyio
 import sentry_sdk
+from anyio.abc import TaskGroup
 from beartype import beartype
 from pydantic import BaseModel, Field, PrivateAttr
 from sentry_sdk.integrations.logging import ignore_logger
@@ -23,10 +24,11 @@ from filament.cache_utils import (
     cache_has_key,
     cache_set,
 )
-from filament.db_session import session_scope
+from filament.db_models import TaskState
+from filament.db_session import async_session_scope
 from filament.func_registry import lookup_func_entry, register_func
+from filament.logic.module_type_registry import lookup_module_type, register_module_type
 from filament.logic.task_type_registry import register as register_task_type
-from filament.module_type_registry import lookup_module_type, register_module_type
 from filament.redis_handler import JSONFormatter, RedisHandler
 from filament.redis_semaphore import RedisSemaphore
 from filament.redis_token_bucket import RedisTokenBucket
@@ -38,9 +40,8 @@ from filament.task_queue import (
     setup_queue,
 )
 from filament.task_state import (
-    TaskState,
     create_task_run_state,
-    get_parent_task_uuid,
+    get_parent_task_run_uuid,
     get_task_run_state,
     is_canceled,
     set_heartbeat,
@@ -189,19 +190,18 @@ class FilamentTaskRun(FilamentBaseModel):
         self._task = asyncio.create_task(self.call())
         return self._task
 
-    async def _start_heartbeat(self):
+    @beartype
+    async def _start_heartbeat(self) -> None:
         while not self._done_event.is_set():
-            set_heartbeat(self.uuid)
+            await set_heartbeat(self.uuid)
             await anyio.sleep(self.config.heartbeat_interval or 1)
 
-    async def _start_cancel_monitor(self, task_group):
+    @beartype
+    async def _start_cancel_monitor(self, task_group: TaskGroup) -> None:
         while not self._done_event.is_set():
-            if is_canceled(self.uuid):
+            if await is_canceled(self.uuid):
                 task_group.cancel_scope.cancel()
             await anyio.sleep(self.config.monitor_interval or 1)
-
-    async def cancel(self):
-        transition_state(self.uuid, TaskState.CANCELLED)
 
     @contextmanager
     def _register_frame(self):
@@ -245,44 +245,44 @@ class FilamentTaskRun(FilamentBaseModel):
             self._logger.exception(e)
             raise
 
-    @contextmanager
-    def _transition_running_state(self):
-        transition_state(self.uuid, TaskState.RUNNING)
+    @asynccontextmanager
+    async def _transition_running_state(self):
+        await transition_state(self.uuid, TaskState.RUNNING)
         yield
-        transition_state(self.uuid, TaskState.SUCCESS)
+        await transition_state(self.uuid, TaskState.SUCCESS)
 
-    @contextmanager
-    def _transition_timeout_state(self):
+    @asynccontextmanager
+    async def _transition_timeout_state(self):
         try:
             with anyio.fail_after(self.config.timeout):
                 yield
         except TimeoutError:
-            transition_state(self.uuid, TaskState.TIMEOUT)
+            await transition_state(self.uuid, TaskState.TIMEOUT)
             raise
 
-    @contextmanager
-    def _transition_cancel_state(self):
+    @asynccontextmanager
+    async def _transition_cancel_state(self):
         try:
             yield
         except anyio.get_cancelled_exc_class():
-            transition_state(self.uuid, TaskState.CANCELLED)
+            await transition_state(self.uuid, TaskState.CANCELLED)
             raise
 
-    @contextmanager
-    def _transition_failure_state(self):
+    @asynccontextmanager
+    async def _transition_failure_state(self):
         try:
             yield
         except Exception as e:
             self._logger.exception(e)
-            transition_state(self.uuid, TaskState.FAILURE)
+            await transition_state(self.uuid, TaskState.FAILURE)
             raise
 
-    @contextmanager
-    def _sentry_context(self):
+    @asynccontextmanager
+    async def _sentry_context(self):
         if self.config.disable_sentry:
             yield
         else:
-            has_parent_frame = get_parent_task_uuid(self.uuid) is not None
+            has_parent_frame = await get_parent_task_run_uuid(self.uuid) is not None
             start_sentry_context = sentry_sdk.start_span if has_parent_frame else sentry_sdk.start_transaction
             with sentry_sdk.new_scope() as scope:
                 scope.set_tag('filament.task_run.uuid', self.uuid)
@@ -310,7 +310,7 @@ class FilamentTaskRun(FilamentBaseModel):
                 except retry_exc_types as e:
                     if i < self.config.tries - 1:
                         self._logger.exception(e)
-                        transition_state(self.uuid, TaskState.RETRYING)
+                        await transition_state(self.uuid, TaskState.RETRYING)
                         if self.config.delay:
                             sleep_time = self.config.delay * self.config.backoff_base**i * random.uniform(1.0, 1.5)
                             await anyio.sleep(sleep_time)
@@ -329,7 +329,7 @@ class FilamentTaskRun(FilamentBaseModel):
             if await cache_has_key(key) and not self.config.refresh_cache:
                 result = await cache_get(key)
                 await anyio.sleep(random.uniform(0.1, 2.0))
-                transition_state(self.uuid, TaskState.CACHED)
+                await transition_state(self.uuid, TaskState.CACHED)
                 return result
             result = await func(*args, **kwargs)
             await cache_set(key, result, ttl=self.config.cache_ttl)
@@ -337,7 +337,8 @@ class FilamentTaskRun(FilamentBaseModel):
 
         return wrapper
 
-    def _get_call_parameters(self):
+    @beartype
+    def _get_call_parameters(self) -> dict:
         args = self.task_args
         kwargs = self.task_kwargs
         signature = inspect.signature(self.type._func)
@@ -353,21 +354,22 @@ class FilamentTaskRun(FilamentBaseModel):
                     filled_parameters[name] = parameter.default
         return filled_parameters
 
-    async def _call(self, task_group):
+    @beartype
+    async def _call(self, task_group: TaskGroup) -> None:
         try:
-            with self._sentry_context():
-                with self._transition_failure_state():
-                    with self._transition_cancel_state():
+            async with self._sentry_context():
+                async with self._transition_failure_state():
+                    async with self._transition_cancel_state():
 
                         @self._retry
                         async def _inner():
                             async with self._acquire_semaphore():
                                 async with self._acquire_token_bucket():
-                                    with self._transition_timeout_state():
+                                    async with self._transition_timeout_state():
 
                                         @self._cache_results
                                         async def __inner():
-                                            with self._transition_running_state():
+                                            async with self._transition_running_state():
                                                 with self._register_frame():
                                                     if inspect.iscoroutinefunction(self.type._func):
                                                         return await self.type._func(
@@ -398,10 +400,10 @@ class FilamentTaskRun(FilamentBaseModel):
             await self._result_send.aclose()
             self._done_event.set()
             task_group.cancel_scope.cancel()
-            set_task_result(self.uuid, self._result, self._exception)
+            await set_task_result(self.uuid, self._result, self._exception)
 
     async def call(self):
-        initialize_task_run_state(self)
+        await initialize_task_run_state(self)
         async with anyio.create_task_group() as task_group:
             if self.config.heartbeat:
                 task_group.start_soon(self._start_heartbeat)
@@ -444,7 +446,7 @@ class FilamentTaskRun(FilamentBaseModel):
 
 class FilamentRemoteTaskRun(FilamentTaskRun):
     async def call(self):
-        initialize_task_run_state(self)
+        await initialize_task_run_state(self)
         await enqueue_task_run(self)
         result, exception = None, None
         try:
@@ -614,7 +616,7 @@ class FilamentTaskType(FilamentBaseModel):
         return self._request(task_args, task_kwargs)
 
     @beartype
-    def _request(self, task_args: tuple, task_kwargs: dict) -> FilamentRemoteTaskRun:
+    def _request(self, task_args, task_kwargs) -> FilamentRemoteTaskRun:
         return FilamentRemoteTaskRun(
             type=self,
             task_args=task_args,
@@ -637,11 +639,12 @@ class FilamentTaskType(FilamentBaseModel):
         return types.MethodType(self, instance)
 
 
-def initialize_task_run_state(task_run: FilamentTaskRun) -> None:
-    with session_scope() as session:
-        task_run_state = get_task_run_state(session, task_run.uuid)
+@beartype
+async def initialize_task_run_state(task_run: FilamentTaskRun) -> None:
+    async with async_session_scope() as session:
+        task_run_state = await get_task_run_state(session, task_run.uuid)
         if task_run_state is None:
-            create_task_run_state(
+            await create_task_run_state(
                 session=session,
                 task_uuid=task_run.uuid,
                 func_address=task_run.type.func_address,
@@ -650,7 +653,7 @@ def initialize_task_run_state(task_run: FilamentTaskRun) -> None:
             )
             parent_task_run = peek_task_run()
             if parent_task_run is not None:
-                set_parent_task_uuid(session, task_run.uuid, parent_task_run.uuid)
+                await set_parent_task_uuid(session, task_run.uuid, parent_task_run.uuid)
 
 
 def get_logger():

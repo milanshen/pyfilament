@@ -4,6 +4,7 @@ from enum import Enum
 
 from pytz import timezone
 from sqlalchemy import Column, ForeignKey, Index, Integer, String
+from sqlalchemy.ext.asyncio import AsyncAttrs
 from sqlalchemy.orm import declarative_base, relationship
 from sqlalchemy.types import TIMESTAMP
 
@@ -32,7 +33,7 @@ def get_utc_now():
     return datetime.now().astimezone(timezone('UTC'))
 
 
-class TaskRun(Base):
+class TaskRun(AsyncAttrs, Base):
     __tablename__ = 'task_run'
 
     id = Column(Integer, primary_key=True)

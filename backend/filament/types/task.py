@@ -2,6 +2,7 @@ import json
 from datetime import datetime
 
 import strawberry
+from sqlalchemy import select
 
 from filament.db_models import TaskRun as TaskRunModel
 from filament.redis_utils import r
@@ -11,12 +12,12 @@ async def get_logs(
     task_run: TaskRunModel, with_children: bool = True, max_depth: int = 3, max_num_children: int = 100
 ) -> list[dict]:
     logs = []
-    redis_key = f'filament_log:{task_run.task_type.func_address}:{task_run.task_uuid}'
+    redis_key = f'filament_log:{(await task_run.awaitable_attrs.task_type).func_address}:{task_run.task_uuid}'
     range_results = await r.lrange(redis_key, 0, -1)
     for range_result in range_results:
         logs.append(json.loads(range_result))
     if with_children and max_depth > 0:
-        for child_task in task_run.child_tasks[:max_num_children]:
+        for child_task in (await task_run.awaitable_attrs.child_tasks)[:max_num_children]:
             logs.extend(await get_logs(child_task, with_children, max_depth - 1, max_num_children))
     return sorted(logs, key=lambda x: x['timestamp'])
 
@@ -32,11 +33,20 @@ class TaskRun:
     heartbeat: datetime
     run_count: int
     parent_task_uuid: str | None
-    state_transitions: list['TaskRunStateTransition']
-    child_tasks: list['TaskRun']
-    task_type: 'TaskType'
     parameters_json: str | None
     result_json: str | None
+
+    @strawberry.field
+    async def task_type(self) -> 'TaskType':
+        return await self.awaitable_attrs.task_type
+
+    @strawberry.field
+    async def state_transitions(self) -> list['TaskRunStateTransition']:
+        return await self.awaitable_attrs.state_transitions
+
+    @strawberry.field
+    async def child_tasks(self) -> list['TaskRun']:
+        return await self.awaitable_attrs.child_tasks
 
     @strawberry.field
     async def logs(
@@ -50,9 +60,9 @@ class TaskRun:
         current = self
         task_runs_stack = []
         task_runs_stack.append(current)
-        while current.parent_task:
-            task_runs_stack.append(current.parent_task)
-            current = current.parent_task
+        while await current.awaitable_attrs.parent_task:
+            task_runs_stack.append(await current.awaitable_attrs.parent_task)
+            current = await current.awaitable_attrs.parent_task
         return list(reversed(task_runs_stack))
 
 
@@ -63,7 +73,10 @@ class TaskRunStateTransition:
     from_state: str
     to_state: str
     state_since: datetime
-    task_run: TaskRun
+
+    @strawberry.field
+    async def task_run(self) -> TaskRun:
+        return await self.awaitable_attrs.task_run
 
 
 @strawberry.type
@@ -85,25 +98,23 @@ class TaskType:
     @strawberry.field
     async def task_runs(self, info) -> list[TaskRun]:
         session = info.context['session']
-        task_runs = (
-            session.query(TaskRunModel)
+        statement = (
+            select(TaskRunModel)
             .where(TaskRunModel.task_type_id == self.id)
             .order_by(TaskRunModel.created_at.desc())
             .limit(99)
-            .all()
         )
+        task_runs = (await session.execute(statement)).scalars().all()
         return task_runs
 
     @strawberry.field
     async def latest_task_run(self, info) -> TaskRun | None:
-        # task_runs = sorted(self.task_runs, key=lambda x: x.created_at, reverse=True)
-        # return task_runs[0] if task_runs else None
         session = info.context['session']
-        task_run = (
-            session.query(TaskRunModel)
+        statement = (
+            select(TaskRunModel)
             .where(TaskRunModel.task_type_id == self.id)
             .order_by(TaskRunModel.state_since.desc())
             .limit(1)
-            .first()
         )
+        task_run = (await session.execute(statement)).scalars().one_or_none()
         return task_run

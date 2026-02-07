@@ -2,7 +2,7 @@ import inspect
 import json
 import logging
 from types import NoneType
-from typing import Optional
+from typing import Any, Callable, Optional
 
 import pydantic
 from beartype import beartype
@@ -21,19 +21,43 @@ logger = logging.getLogger(__name__)
 REDIS_KEY_PREFIX = 'task_run:'
 
 
-def get_key(key):
-    return f'{REDIS_KEY_PREFIX}{key}'
+@beartype
+def with_session(func: Callable) -> Callable:
+    if inspect.iscoroutinefunction(func) or inspect.isasyncgenfunction(func):
 
+        async def wrapper(*args, **kwargs):
+            if 'session' in kwargs and kwargs['session'] is not None or len(args) > 0 and isinstance(args[0], Session):
+                return await func(*args, **kwargs)
+            else:
+                with session_scope() as session:
+                    return await func(session, *args, **kwargs)
+    else:
 
-def set_heartbeat(task_uuid):
-    with session_scope() as session:
-        query = session.query(TaskRun).where(TaskRun.task_uuid == task_uuid)
-        task_run = query.one()
-        task_run.heartbeat = get_utc_now()
-        session.commit()
+        def wrapper(*args, **kwargs):
+            if 'session' in kwargs and kwargs['session'] is not None or len(args) > 0 and isinstance(args[0], Session):
+                return func(*args, **kwargs)
+            else:
+                with session_scope() as session:
+                    return func(session, *args, **kwargs)
+
+    return wrapper
 
 
 @beartype
+def get_key(key: str) -> str:
+    return f'{REDIS_KEY_PREFIX}{key}'
+
+
+@beartype
+@with_session
+def set_heartbeat(session: Session, task_uuid: str) -> None:
+    query = session.query(TaskRun).where(TaskRun.task_uuid == task_uuid)
+    task_run = query.one()
+    task_run.heartbeat = get_utc_now()
+
+
+@beartype
+@with_session
 async def create_task_type_state(session: Session, func_entry: FuncRegistryEntry, name: str | None = None) -> None:
     input_json_schema = get_parameters_spec(func_entry, name)
     output_json_schema = get_result_spec(func_entry)
@@ -56,7 +80,8 @@ async def create_task_type_state(session: Session, func_entry: FuncRegistryEntry
         session.add(task_type)
 
 
-def is_pydantic_compatible(type_):
+@beartype
+def is_pydantic_compatible(type_: Any) -> bool:
     try:
         pydantic.TypeAdapter(type_)
         return True
@@ -64,11 +89,13 @@ def is_pydantic_compatible(type_):
         return False
 
 
-def is_optional(type_):
+@beartype
+def is_optional(type_: Any) -> bool:
     hint = TypeHint(type_)
     return isinstance(hint, UnionTypeHint) and NoneType in hint.args
 
 
+@beartype
 def get_parameters_spec(func_entry: FuncRegistryEntry, func_name: str | None = None) -> str | None:
     func, class_ = func_entry.func, func_entry.class_
     signature = inspect.signature(func)
@@ -109,6 +136,7 @@ def get_parameters_spec(func_entry: FuncRegistryEntry, func_name: str | None = N
         return None
 
 
+@beartype
 def get_result_spec(func_entry: FuncRegistryEntry) -> str | None:
     signature = inspect.signature(func_entry.func)
     if signature.return_annotation != inspect.Signature.empty:
@@ -121,76 +149,76 @@ def get_result_spec(func_entry: FuncRegistryEntry) -> str | None:
     return None
 
 
-def create_task_run_state(task_uuid, func_address, name=None, parameters=None):
-    with session_scope() as session:
-        query = session.query(TaskType).where(TaskType.func_address == func_address)
-        task_type = query.one_or_none()
-        if task_type is None:
-            raise ValueError(f'No task type found for func_address {func_address}')
-        task_run = TaskRun(name=name, task_uuid=task_uuid, task_type_id=task_type.id)
-        if parameters is not None:
-            task_run.parameters_json = json.dumps(json_encode_safe(parameters), separators=(',', ':'), default=str)
-        session.add(task_run)
-        session.commit()
-    # logger.info(f"{task_run} created")
-    return task_run
+@beartype
+@with_session
+def create_task_run_state(
+    session: Session, task_uuid: str, func_address: str, name: str | None = None, parameters: dict | None = None
+) -> None:
+    query = session.query(TaskType).where(TaskType.func_address == func_address)
+    task_type = query.one_or_none()
+    if task_type is None:
+        raise ValueError(f'No task type found for func_address {func_address}')
+    task_run = TaskRun(name=name, task_uuid=task_uuid, task_type_id=task_type.id)
+    if parameters is not None:
+        task_run.parameters_json = json.dumps(json_encode_safe(parameters), separators=(',', ':'), default=str)
+    session.add(task_run)
 
 
-def transition_state(task_uuid, new_state):
-    with session_scope() as session:
-        query = session.query(TaskRun).where(TaskRun.task_uuid == task_uuid)
-        task_run = query.one()
-        old_state = task_run.state
-        if old_state == new_state:
-            # logger.info(f'{task_run} already in state {new_state}')
-            return
-        if new_state == TaskState.RUNNING:
-            task_run.run_count += 1
-        task_run.state = new_state
-        task_run.state_since = get_utc_now()
-        transition = TaskRunStateTransition(
-            task_uuid=task_uuid, from_state=old_state, to_state=new_state, state_since=task_run.state_since
-        )
-        session.add(transition)
-        # logger.info(f'{task_run} from {old_state} to {new_state}')
-        session.commit()
+@beartype
+@with_session
+def transition_state(session: Session, task_uuid: str, new_state: TaskState) -> None:
+    query = session.query(TaskRun).where(TaskRun.task_uuid == task_uuid)
+    task_run = query.one()
+    old_state = task_run.state
+    if old_state == new_state:
+        return
+    if new_state == TaskState.RUNNING:
+        task_run.run_count += 1
+    task_run.state = new_state
+    task_run.state_since = get_utc_now()
+    transition = TaskRunStateTransition(
+        task_uuid=task_uuid, from_state=old_state, to_state=new_state, state_since=task_run.state_since
+    )
+    session.add(transition)
 
 
-def set_task_result(task_uuid, result, exception):
-    with session_scope() as session:
-        query = session.query(TaskRun).where(TaskRun.task_uuid == task_uuid)
-        task_run = query.one()
-        if exception is not None:
-            result = exception
-        task_run.result_json = json.dumps(json_encode_safe(result), separators=(',', ':'), default=str)
-        session.commit()
+@beartype
+@with_session
+def set_task_result(session: Session, task_uuid: str, result: Any, exception: BaseException | None = None) -> None:
+    query = session.query(TaskRun).where(TaskRun.task_uuid == task_uuid)
+    task_run = query.one()
+    if exception is not None:
+        result = exception
+    task_run.result_json = json.dumps(json_encode_safe(result), separators=(',', ':'), default=str)
 
 
-async def get_task_run_dict(task_uuid):
-    with session_scope() as session:
-        query = session.query(TaskRun).where(TaskRun.task_uuid == task_uuid)
-        task_run = query.one()
-        return get_json_dict(task_run)
+@beartype
+@with_session
+async def get_task_run_dict(session: Session, task_uuid: str) -> dict:
+    query = session.query(TaskRun).where(TaskRun.task_uuid == task_uuid)
+    task_run = query.one()
+    return get_json_dict(task_run)
 
 
-def is_canceled(task_uuid):
-    with session_scope() as session:
-        query = session.query(TaskRun).where(TaskRun.task_uuid == task_uuid)
-        task_run = query.one()
-        return task_run.state == TaskState.CANCELLED
+@beartype
+@with_session
+def is_canceled(session: Session, task_uuid: str) -> bool:
+    query = session.query(TaskRun).where(TaskRun.task_uuid == task_uuid)
+    task_run = query.one()
+    return task_run.state == TaskState.CANCELLED
 
 
-def set_parent_task_uuid(task_uuid, parent_task_uuid):
-    # logger.info(f"{task_uuid} set parent_task_uuid to {parent_task_uuid}")
-    with session_scope() as session:
-        query = session.query(TaskRun).where(TaskRun.task_uuid == task_uuid)
-        task_run = query.one()
-        task_run.parent_task_uuid = parent_task_uuid
-        session.commit()
+@beartype
+@with_session
+def set_parent_task_uuid(session: Session, task_uuid: str, parent_task_uuid: str) -> None:
+    query = session.query(TaskRun).where(TaskRun.task_uuid == task_uuid)
+    task_run = query.one()
+    task_run.parent_task_uuid = parent_task_uuid
 
 
-def get_parent_task_uuid(task_uuid):
-    with session_scope() as session:
-        query = session.query(TaskRun).where(TaskRun.task_uuid == task_uuid)
-        task_run = query.one_or_none()
-        return task_run.parent_task_uuid if task_run else None
+@beartype
+@with_session
+def get_parent_task_uuid(session: Session, task_uuid: str) -> str | None:
+    query = session.query(TaskRun).where(TaskRun.task_uuid == task_uuid)
+    task_run = query.one_or_none()
+    return task_run.parent_task_uuid if task_run else None

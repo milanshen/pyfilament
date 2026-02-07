@@ -31,7 +31,6 @@ from filament.redis_token_bucket import RedisTokenBucket
 from filament.task_queue import (
     dequeue_task_run,
     enqueue_task_run,
-    get_task_result,
     listen_for_task_result,
     publish_task_result,
     setup_queue,
@@ -40,7 +39,6 @@ from filament.task_state import (
     TaskState,
     create_task_run_state,
     get_parent_task_uuid,
-    get_task_run_dict,
     is_canceled,
     set_heartbeat,
     set_parent_task_uuid,
@@ -693,57 +691,3 @@ def task(*wrapper_args, **wrapper_kwargs):
     if func is not None:
         return get_wrapper(func)
     return get_wrapper
-
-
-async def wait_for_remote_task_run(task_uuid, propagate=True, timeout=None):
-    with anyio.fail_after(timeout):
-        # TODO: propagate exceptions
-        await wait_for_task(task_uuid)
-
-
-async def get_remote_task_run_results(task_uuid, propagate=False, timeout=None):
-    with anyio.fail_after(timeout):
-        async for result in generate_remote_task_run_results(task_uuid, propagate=propagate):
-            pass
-        return result
-
-
-async def generate_remote_task_run_results(task_uuid, propagate=False, check_state_interval=1):
-    task_result_json, is_final = None, False
-    listen_generator = listen_for_task_result(task_uuid)
-
-    while not is_final:
-        async with anyio.create_task_group() as task_group:
-
-            async def _wait_for_state():
-                nonlocal task_result_json, is_final
-                await wait_for_task(task_uuid, check_state_interval=check_state_interval)
-                task_result_json = await get_task_result(task_uuid)
-                is_final = True
-                task_group.cancel_scope.cancel()
-
-            async def _wait_for_result():
-                nonlocal task_result_json, is_final
-                task_result_json, is_final = await anext(listen_generator)
-                task_group.cancel_scope.cancel()
-
-            task_group.start_soon(_wait_for_state)
-            task_group.start_soon(_wait_for_result)
-
-        # TODO: this currently fails if the task is not submitted
-        assert task_result_json is not None, 'Task result is None'
-        task_result = FilamentTaskResult.model_validate_json(task_result_json)
-        if task_result._exception:
-            if propagate:
-                raise task_result._exception
-            yield task_result._exception
-        else:
-            yield task_result._result
-
-
-async def wait_for_task(task_uuid, check_state_interval=1):
-    while True:
-        task_run = await get_task_run_dict(task_uuid)
-        if task_run['state'] in TaskState.TERMINAL:
-            break
-        await anyio.sleep(check_state_interval)

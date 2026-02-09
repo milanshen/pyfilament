@@ -1,7 +1,7 @@
 import { useQuery } from '@apollo/client';
 import _ from 'lodash';
 import { useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useSearchParams } from 'react-router-dom';
 
 import ExpandableMessage from '@/components/ExpandableMessage';
 import HumanTime from '@/components/HumanTime';
@@ -17,7 +17,8 @@ import { getStates } from './utils/states';
 
 function TaskTypePage() {
     const { taskTypeId } = useParams();
-
+    const [searchParams] = useSearchParams();
+    const days = searchParams.get('days') || 3;
     const [stateFilter, setStateFilter] = useState('all');
 
     const getTaskTypeQuery = useQuery(GET_TASK_TYPE, { variables: { id: taskTypeId } });
@@ -25,6 +26,7 @@ function TaskTypePage() {
         variables: {
             taskTypeId,
             states: getStates(stateFilter),
+            days: parseInt(days),
         },
     });
 

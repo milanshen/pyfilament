@@ -88,8 +88,8 @@ const GET_TASK_TYPE = gql`
 `;
 
 const GET_TASK_RUNS = gql`
-    query GetTaskRuns($taskTypeId: ID!, $states: [String!]!) {
-        getTaskRuns(taskTypeId: $taskTypeId, states: $states) {
+    query GetTaskRuns($taskTypeId: ID!, $states: [String!]!, $days: Int!) {
+        getTaskRuns(taskTypeId: $taskTypeId, states: $states, days: $days) {
             id
             taskUuid
             name
@@ -105,8 +105,8 @@ const GET_TASK_RUNS = gql`
 `;
 
 const GET_TASK_TYPES = gql`
-    query GetTaskTypes {
-        getTaskTypes {
+    query GetTaskTypes($days: Int!) {
+        getTaskTypes(days: $days) {
             id
             name
             funcAddress
@@ -208,5 +208,6 @@ export {
     GET_TASK_TYPE_STACK_RUNS,
     GET_TASK_TYPES,
     GET_TASK_TYPES_BY_IDS,
-    RUN_TASK,
+    RUN_TASK
 };
+

@@ -1,8 +1,9 @@
+import HumanTime from '@/components/HumanTime';
 import { useQuery } from '@apollo/client';
 import dayjs from 'dayjs';
 import _ from 'lodash';
+import { useSearchParams } from 'react-router-dom';
 
-import HumanTime from '@/components/HumanTime';
 import { LinkTo } from '@/components/LinkTo';
 import StateBadge from '@/components/StateBadge';
 import TaskLink from '@/components/TaskLink';
@@ -10,7 +11,9 @@ import TaskLink from '@/components/TaskLink';
 import { GET_TASK_TYPES } from './queries';
 
 function TaskTypesPage() {
-    const getTaskTypesQuery = useQuery(GET_TASK_TYPES);
+    const [searchParams] = useSearchParams();
+    const days = searchParams.get('days') || 3;
+    const getTaskTypesQuery = useQuery(GET_TASK_TYPES, { variables: { days: parseInt(days) } });
 
     if (getTaskTypesQuery.loading || getTaskTypesQuery.error) {
         return <p>{getTaskTypesQuery.loading ? 'Loading...' : `Error: ${getTaskTypesQuery.error.message}`}</p>;

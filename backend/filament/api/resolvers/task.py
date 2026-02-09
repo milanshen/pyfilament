@@ -9,6 +9,7 @@ from werkzeug.exceptions import BadRequest, NotFound
 
 from filament.db_models import TaskRun as TaskRunModel
 from filament.db_models import TaskType as TaskTypeModel
+from filament.filament import initialize_task_run_state
 from filament.logic.task_run import cancel_task_run as logic_cancel_task_run
 from filament.logic.task_type_registry import lookup
 from filament.types.task import TaskRun, TaskType
@@ -161,6 +162,7 @@ async def run_task(self, info, task_type_id: ID, parameters_json: str) -> TaskRu
     parameters = json.loads(parameters_json)
     parameters.update({'start_immediately': True})
     filament_task_run = filament_task_type._request(task_args=[], task_kwargs=parameters)
+    await initialize_task_run_state(filament_task_run)  # manually required since we're not awaiting the task run
     statement = select(TaskRunModel).where(TaskRunModel.task_uuid == filament_task_run.uuid)
     task_run = (await session.execute(statement)).scalars().one()
     return task_run

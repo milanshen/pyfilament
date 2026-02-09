@@ -10,7 +10,6 @@ load_dotenv()
 DATABASE_URL = os.getenv('FILAMENT_DB_URI', 'sqlite://filament.db')
 
 _AIO_SCHEMES = {
-    'sqlite': 'sqlite+aiosqlite',
     'postgresql': 'postgresql+asyncpg',
 }
 

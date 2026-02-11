@@ -149,10 +149,7 @@ def avoid_nans(obj_json: str) -> str:
 
 
 def safe_json_dumps(obj, **kwargs) -> str:
-    try:
-        return json.dumps(obj, separators=(',', ':'), sort_keys=True, cls=SafeJsonEncoder, **kwargs)
-    except Exception:
-        return str(obj)
+    return json.dumps(obj, separators=(',', ':'), sort_keys=True, cls=SafeJsonEncoder, **kwargs)
 
 
 class SafeJsonEncoder(json.JSONEncoder):

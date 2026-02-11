@@ -151,7 +151,7 @@ def avoid_nans(obj_json: str) -> str:
 
 @beartype
 def safe_json_dumps(obj: Any, **kwargs) -> str:
-    return json.dumps(obj, separators=(',', ':'), sort_keys=True, cls=SafeJsonEncoder, **kwargs)
+    return json.dumps(obj, cls=SafeJsonEncoder, **kwargs)
 
 
 class SafeJsonEncoder(json.JSONEncoder):

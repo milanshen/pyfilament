@@ -46,7 +46,7 @@ async def download_task_run(request: Request, task_run_id: int, max_child_tasks:
     if task_run is None:
         raise NotFound(f'TaskRun with ID {task_run_id} not found')
     task_run_dict = await deep_get_task_run_dict(task_run, max_child_tasks, child_depth)
-    file_content = safe_json_dumps(rename_keys_to_camel_case(task_run_dict), indent=2).encode('utf-8')
+    file_content = safe_json_dumps(rename_keys_to_camel_case(task_run_dict), indent=2, sort_keys=True).encode('utf-8')
     filename = f'task_run_{task_run_id}.json'
     headers = {'Content-Disposition': f'attachment; filename="{filename}"'}
     return Response(

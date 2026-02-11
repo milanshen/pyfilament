@@ -8,6 +8,7 @@ from collections import defaultdict
 from dataclasses import fields as dataclasses_fields
 from dataclasses import is_dataclass
 from datetime import date, datetime
+from typing import Any
 
 from beartype import beartype
 from inflection import camelize
@@ -148,7 +149,8 @@ def avoid_nans(obj_json: str) -> str:
     return re.sub(r'\bNaN\b', 'null', obj_json)
 
 
-def safe_json_dumps(obj, **kwargs) -> str:
+@beartype
+def safe_json_dumps(obj: Any, **kwargs) -> str:
     return json.dumps(obj, separators=(',', ':'), sort_keys=True, cls=SafeJsonEncoder, **kwargs)
 
 

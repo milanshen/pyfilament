@@ -7,7 +7,7 @@ import traceback
 from collections import defaultdict
 from dataclasses import fields as dataclasses_fields
 from dataclasses import is_dataclass
-from datetime import datetime
+from datetime import date, datetime
 
 from beartype import beartype
 from inflection import camelize
@@ -146,3 +146,21 @@ def flat_serialize(model: Base) -> dict:
 
 def avoid_nans(obj_json: str) -> str:
     return re.sub(r'\bNaN\b', 'null', obj_json)
+
+
+def safe_json_dumps(obj, **kwargs) -> str:
+    try:
+        return json.dumps(obj, separators=(',', ':'), sort_keys=True, cls=SafeJsonEncoder, **kwargs)
+    except Exception:
+        return str(obj)
+
+
+class SafeJsonEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, BaseModel):
+            return json.loads(obj.model_dump_json())
+        if isinstance(obj, datetime):
+            return obj.isoformat()
+        if isinstance(obj, date):
+            return obj.isoformat()
+        return super().default(obj)

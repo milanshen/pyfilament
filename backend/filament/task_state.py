@@ -5,10 +5,11 @@ from functools import wraps
 from types import NoneType
 from typing import Any, Callable, Optional
 
-import pydantic
 from beartype import beartype
 from beartype.door import TypeHint, UnionTypeHint
 from inflection import camelize
+from pydantic import BaseModel, ConfigDict, TypeAdapter, create_model
+from pydantic.errors import PydanticInvalidForJsonSchema, PydanticSchemaGenerationError
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -84,9 +85,9 @@ async def create_task_type_state(session: AsyncSession, func_entry: FuncRegistry
 @beartype
 def is_pydantic_compatible(type_: Any) -> bool:
     try:
-        pydantic.TypeAdapter(type_)
+        TypeAdapter(type_)
         return True
-    except pydantic.errors.PydanticTypeError:
+    except PydanticSchemaGenerationError:
         return False
 
 
@@ -106,7 +107,7 @@ def get_parameters_spec(func_entry: FuncRegistryEntry, func_name: str | None = N
         if param.kind in (param.VAR_POSITIONAL, param.VAR_KEYWORD):
             continue
         allowed_type = None
-        if param_name == 'self' and isinstance(class_, type) and issubclass(class_, pydantic.BaseModel):
+        if param_name == 'self' and isinstance(class_, type) and issubclass(class_, BaseModel):
             allowed_type = class_
         if param.annotation != inspect.Signature.empty:
             input_type = param.annotation
@@ -125,15 +126,15 @@ def get_parameters_spec(func_entry: FuncRegistryEntry, func_name: str | None = N
     if func_name is None:
         func_name = func.__name__
 
-    InputModel = pydantic.create_model(
+    InputModel = create_model(
         f'{camelize(func_name)}InputModel',
-        __config__=pydantic.ConfigDict(use_attribute_docstrings=True, extra='forbid'),
+        __config__=ConfigDict(use_attribute_docstrings=True, extra='forbid'),
         **allowed_types,
     )
 
     try:
         return json.dumps(InputModel.model_json_schema(), separators=(',', ':'), default=str)
-    except pydantic.errors.PydanticInvalidForJsonSchema:
+    except PydanticInvalidForJsonSchema:
         return None
 
 
@@ -142,10 +143,10 @@ def get_result_spec(func_entry: FuncRegistryEntry) -> str | None:
     signature = inspect.signature(func_entry.func)
     if signature.return_annotation != inspect.Signature.empty:
         output_format = signature.return_annotation
-        if isinstance(output_format, type) and issubclass(output_format, pydantic.BaseModel):
+        if isinstance(output_format, type) and issubclass(output_format, BaseModel):
             try:
                 return json.dumps(signature.return_annotation.model_json_schema(), separators=(',', ':'), default=str)
-            except pydantic.errors.PydanticInvalidForJsonSchema:
+            except PydanticInvalidForJsonSchema:
                 return None
     return None
 

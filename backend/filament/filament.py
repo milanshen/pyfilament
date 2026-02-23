@@ -612,17 +612,18 @@ class FilamentTaskType(FilamentBaseModel):
             await publish_task_result(task_result, is_final=True, message_id=message_id)
 
     @beartype
-    def request(self, *task_args, **task_kwargs) -> FilamentRemoteTaskRun:
-        return self._request(task_args, task_kwargs)
+    async def request(self, *task_args, **task_kwargs) -> FilamentRemoteTaskRun:
+        return await self._request(task_args, task_kwargs)
 
     @beartype
-    def _request(self, task_args, task_kwargs) -> FilamentRemoteTaskRun:
-        return FilamentRemoteTaskRun(
+    async def _request(self, task_args, task_kwargs) -> FilamentRemoteTaskRun:
+        task_run = FilamentRemoteTaskRun(
             type=self,
             task_args=task_args,
             task_kwargs=task_kwargs,
             config=self.config,
         )
+        await initialize_task_run_state(task_run)
 
     @beartype
     def __call__(self, *task_args, **task_kwargs) -> FilamentTaskRun:

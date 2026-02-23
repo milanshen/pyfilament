@@ -161,7 +161,7 @@ async def run_task(self, info, task_type_id: ID, parameters_json: str) -> TaskRu
     filament_task_type = lookup(func_address)
     parameters = json.loads(parameters_json)
     parameters.update({'start_immediately': True})
-    filament_task_run = filament_task_type._request(task_args=[], task_kwargs=parameters)
+    filament_task_run = await filament_task_type._request(task_args=[], task_kwargs=parameters)
     # manually required since we're not awaiting the task run
     await initialize_task_run_state(filament_task_run)
     statement = select(TaskRunModel).where(TaskRunModel.task_uuid == filament_task_run.uuid)

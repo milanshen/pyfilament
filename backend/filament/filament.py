@@ -52,6 +52,9 @@ from filament.task_state import (
 from filament.utils import get_function_type, json_encode_safe
 from filament.utils_call_stack import peek_task_run, pop_task_run, push_task_run
 
+DEFAULT_HEARTBEAT_INTERVAL = 1
+DEFAULT_MONITOR_INTERVAL = 1
+
 
 class FilamentBaseModel(BaseModel):
     def __hash__(self):
@@ -97,9 +100,9 @@ class FilamentTaskConfig(FilamentBaseModel):
     cache_ttl: int | None = Field(default=None)
     refresh_cache: bool = Field(default=False)
     heartbeat: bool = Field(default=True)
-    heartbeat_interval: float | None = Field(default=1)
+    heartbeat_interval: float | None = Field(default=DEFAULT_HEARTBEAT_INTERVAL)
     monitor: bool = Field(default=True)
-    monitor_interval: float | None = Field(default=1)
+    monitor_interval: float | None = Field(default=DEFAULT_MONITOR_INTERVAL)
     max_concurrent: int | None = Field(default=None)
     rate_limit: float | None = Field(default=None)
     disable_sentry: bool = Field(default=False)
@@ -194,14 +197,14 @@ class FilamentTaskRun(FilamentBaseModel):
     async def _start_heartbeat(self) -> None:
         while not self._done_event.is_set():
             await set_heartbeat(self.uuid)
-            await anyio.sleep(self.config.heartbeat_interval or 1)
+            await anyio.sleep(self.config.heartbeat_interval or DEFAULT_HEARTBEAT_INTERVAL)
 
     @beartype
     async def _start_cancel_monitor(self, task_group: TaskGroup) -> None:
         while not self._done_event.is_set():
             if await is_canceled(self.uuid):
                 task_group.cancel_scope.cancel()
-            await anyio.sleep(self.config.monitor_interval or 1)
+            await anyio.sleep(self.config.monitor_interval or DEFAULT_MONITOR_INTERVAL)
 
     @contextmanager
     def _register_frame(self):
@@ -230,7 +233,7 @@ class FilamentTaskRun(FilamentBaseModel):
             yield
             return
         try:
-            heartbeat_interval = self.config.heartbeat_interval or 1
+            heartbeat_interval = self.config.heartbeat_interval or DEFAULT_HEARTBEAT_INTERVAL
             semaphore = RedisSemaphore(
                 name=f'filament_task_run:{self.type.func_address}',
                 max_leases=self.config.max_concurrent,

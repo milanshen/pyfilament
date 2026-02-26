@@ -24,8 +24,6 @@ def convert_to_async_url(url):
     return parts.geturl()
 
 
-# use a null pool because we don't want to recycle connections
-# engine = create_async_engine(convert_to_async_url(DATABASE_URL), poolclass=NullPool, echo_pool='debug')
 engine = create_async_engine(convert_to_async_url(DATABASE_URL), pool_size=10, max_overflow=100)
 AsyncSession = async_sessionmaker(bind=engine)
 

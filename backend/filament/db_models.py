@@ -1,8 +1,7 @@
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 
-from pytz import timezone
 from sqlalchemy import Column, ForeignKey, Index, Integer, String
 from sqlalchemy.ext.asyncio import AsyncAttrs
 from sqlalchemy.orm import declarative_base, relationship
@@ -30,7 +29,7 @@ def get_uuid():
 
 
 def get_utc_now():
-    return datetime.now().astimezone(timezone('UTC'))
+    return datetime.now().astimezone(timezone.utc)
 
 
 class TaskRun(AsyncAttrs, Base):

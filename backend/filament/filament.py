@@ -131,6 +131,7 @@ class FilamentTaskRun(FilamentBaseModel):
     task_args: tuple = Field(default=())
     task_kwargs: dict = Field(default={})
     name: str
+    worker_id: str | None = None
 
     def __init__(
         self,
@@ -140,6 +141,7 @@ class FilamentTaskRun(FilamentBaseModel):
         name=None,
         uuid=None,
         config: Optional[Union['FilamentTaskConfig', dict]] = None,
+        worker_id: str | None = None,
     ):
         if config is not None:
             if isinstance(config, dict):
@@ -167,6 +169,7 @@ class FilamentTaskRun(FilamentBaseModel):
             task_args=task_args,
             task_kwargs=task_kwargs,
             config=config,
+            worker_id=worker_id,
         )
 
     def __hash__(self):
@@ -589,6 +592,7 @@ class FilamentTaskType(FilamentBaseModel):
                 continue
             try:
                 filament_task_run = FilamentTaskRun.model_validate_json(filament_task_run_json)
+                filament_task_run.worker_id = worker_id
                 filament_task_run.config.propagate = True  # always propagate so we can catch and serialize
             except Exception as e:
                 self._logger.exception(e)

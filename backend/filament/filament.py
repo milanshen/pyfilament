@@ -468,9 +468,11 @@ class FilamentRemoteTaskRun(FilamentTaskRun):
         await self._done_event.wait()
         return await self.result()
 
-    async def _listen_for_task_result(self, task_group: TaskGroup):
+    @beartype
+    async def _listen_for_task_result(self, task_group: TaskGroup) -> None:
         result, exception = None, None
         is_final = False
+        task_result_json = None
         try:
             async for task_result_json, is_final in listen_for_task_result(self.uuid):
                 # self._logger.debug(f'remote received {task_result_json}, is_final: {is_final}')

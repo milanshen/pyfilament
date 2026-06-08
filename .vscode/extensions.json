@@ -1,0 +1,13 @@
+{
+    "recommendations": [
+        "esbenp.prettier-vscode",
+        "charliermarsh.ruff",
+        "ms-python.vscode-pylance",
+        "ms-azuretools.vscode-docker",
+        "dbaeumer.vscode-eslint",
+        "bradlc.vscode-tailwindcss",
+        "ms-python.mypy-type-checker",
+        "streetsidesoftware.code-spell-checker",
+        "anysphere.cursorpyright"
+    ]
+}

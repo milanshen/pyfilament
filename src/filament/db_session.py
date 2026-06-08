@@ -7,25 +7,25 @@ from dotenv import load_dotenv
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 load_dotenv()
-DATABASE_URL = os.getenv('FILAMENT_DB_URI', 'sqlite://filament.db')
+DATABASE_URL = os.getenv('FILAMENT_DB_URI', 'sqlite+aiosqlite:///filament.db')
 
-_AIO_SCHEMES = {
-    'postgresql': 'postgresql+asyncpg',
-    'sqlite': 'sqlite+aiosqlite',
+_AIO_ENGINE_KWARGS = {
+    'sqlite+aiosqlite': {},
+    'postgresql+asyncpg': {
+        'pool_size': 10,
+        'max_overflow': 100,
+    },
 }
 
-
-def convert_to_async_url(url):
+def _get_create_engine_kwargs(url):
     parts = urlparse(url)
     scheme = parts.scheme
-    if scheme not in _AIO_SCHEMES:
+    if scheme not in _AIO_ENGINE_KWARGS:
         raise ValueError(f'Unsupported async scheme: {scheme}')
-    scheme = _AIO_SCHEMES[scheme]
-    parts = parts._replace(scheme=scheme)
-    return parts.geturl()
+    return _AIO_ENGINE_KWARGS[scheme]
 
-
-engine = create_async_engine(convert_to_async_url(DATABASE_URL), pool_size=10, max_overflow=100)
+engine_kwargs = _get_create_engine_kwargs(DATABASE_URL)
+engine = create_async_engine(DATABASE_URL, **engine_kwargs)
 AsyncSession = async_sessionmaker(bind=engine)
 
 

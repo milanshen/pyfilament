@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 load_dotenv()
-DATABASE_URL = os.getenv('FILAMENT_DB_URI', 'sqlite+aiosqlite:///filament.db')
+DATABASE_URL = os.getenv('FILAMENT_DB_URI', 'sqlite+aiosqlite:///filament.sqlite')
 
 _AIO_ENGINE_KWARGS = {
     'sqlite+aiosqlite': {},

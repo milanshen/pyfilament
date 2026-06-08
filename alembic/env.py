@@ -25,18 +25,8 @@ target_metadata = Base.metadata
 # ... etc.
 
 
-import os
-
-from dotenv import load_dotenv
-
-dotenv_config = load_dotenv()
-
-FILAMENT_DB_URI = os.getenv('FILAMENT_DB_URI')
-
-FILAMENT_DB_URI = FILAMENT_DB_URI.replace('%', '%%')
-
 # Set the SQLAlchemy URL in the config object
-config.set_main_option('sqlalchemy.url', FILAMENT_DB_URI)
+# config.set_main_option('sqlalchemy.url', FILAMENT_DB_URI)
 
 
 def run_migrations_offline() -> None:

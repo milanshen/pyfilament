@@ -3,8 +3,8 @@ import time
 from functools import partial
 
 import anyio
-from redis_semaphore import RedisSemaphore, RedisSemaphoreException
-from redis_utils import r
+from filament.redis_semaphore import RedisSemaphore, RedisSemaphoreException
+from filament.redis_utils import r
 
 
 async def main():

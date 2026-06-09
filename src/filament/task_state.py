@@ -16,7 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from filament.db_models import TaskRun, TaskRunStateTransition, TaskState, TaskType, get_utc_now
 from filament.db_session import async_session_scope
 from filament.func_registry import FuncRegistryEntry
-from filament.utils import get_json_dict, json_encode_safe, redact_strings
+from filament.logic.utils import get_json_dict, json_encode_safe, redact_strings
 
 logger = logging.getLogger(__name__)
 

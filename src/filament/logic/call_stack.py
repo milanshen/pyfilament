@@ -5,7 +5,7 @@ from beartype.typing import TYPE_CHECKING, Optional
 if TYPE_CHECKING:
     from filament.filament import FilamentTaskRun
 
-call_stack = ContextVar[list['FilamentTaskRun']]('filament.utils_call_stack:call_stack', default=[])
+call_stack = ContextVar[list['FilamentTaskRun']]('filament.logic.call_stack:call_stack', default=[])
 
 
 # @beartype # can't beartype here because circular import, fix later

@@ -6,7 +6,7 @@ from werkzeug.exceptions import NotFound
 from filament.api.app import app
 from filament.api.logic.task_run_dict import deep_get_task_run_dict
 from filament.db_models import TaskRun as TaskRunModel
-from filament.utils import rename_keys_to_camel_case, safe_json_dumps
+from filament.logic.utils import rename_keys_to_camel_case, safe_json_dumps
 
 logger = logging.getLogger(__name__)
 

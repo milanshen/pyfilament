@@ -46,8 +46,8 @@ from filament.task_state import (
     set_task_result,
     transition_state,
 )
-from filament.utils import get_function_type, json_encode_safe
-from filament.utils_call_stack import peek_task_run, pop_task_run, push_task_run
+from filament.logic.utils import get_function_type, json_encode_safe
+from filament.logic.call_stack import peek_task_run, pop_task_run, push_task_run
 
 DEFAULT_HEARTBEAT_INTERVAL = 60
 DEFAULT_MONITOR_INTERVAL = 10

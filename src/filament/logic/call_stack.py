@@ -11,6 +11,7 @@ else:
 _call_stack = None
 
 
+@beartype
 def _get_call_stack() -> ContextVar[list[FilamentTaskRun]]:
     global _call_stack
     if _call_stack is None:

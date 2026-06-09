@@ -23,7 +23,7 @@ from filament.db.models import TaskState
 from filament.redis.logging_handler import JSONFormatter, RedisHandler
 from filament.redis.semaphore import RedisSemaphore
 from filament.redis.token_bucket import RedisTokenBucket
-from filament.task.task_state import (
+from filament.task.state.task_state import (
     is_canceled,
     set_heartbeat,
     set_task_result,
@@ -34,7 +34,7 @@ from filament.logic.call_stack import pop_task_run, push_task_run
 from filament.task.base import FilamentBaseModel
 from filament.task.task_config import FilamentTaskConfig
 from filament.task.constants import DEFAULT_HEARTBEAT_INTERVAL, DEFAULT_MONITOR_INTERVAL
-from filament.task.task_run_state import initialize_task_run_state
+from filament.task.state.task_run_state import initialize_task_run_state
 
 if TYPE_CHECKING:
     from filament.task.task_type import FilamentTaskType

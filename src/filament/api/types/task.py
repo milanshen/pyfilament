@@ -38,26 +38,26 @@ class TaskRun:
     result_json: str | None
 
     @strawberry.field
-    async def task_type(self) -> TaskType:
+    async def task_type(self) -> 'TaskType':
         return await self.awaitable_attrs.task_type
 
     @strawberry.field
-    async def state_transitions(self) -> list[TaskRunStateTransition]:
+    async def state_transitions(self) -> list['TaskRunStateTransition']:
         return await self.awaitable_attrs.state_transitions
 
     @strawberry.field
-    async def child_tasks(self) -> list[TaskRun]:
+    async def child_tasks(self) -> list['TaskRun']:
         return await self.awaitable_attrs.child_tasks
 
     @strawberry.field
     async def logs(
         self, with_children: bool = True, max_depth: int = 3, max_num_children: int = 100
-    ) -> list[TaskRunLog]:
+    ) -> list['TaskRunLog']:
         logs = await get_logs(self, with_children, max_depth, max_num_children)
         return [TaskRunLog(**log) for log in logs]
 
     @strawberry.field
-    async def task_runs_stack(self) -> list[TaskRun]:
+    async def task_runs_stack(self) -> list['TaskRun']:
         current = self
         task_runs_stack = []
         task_runs_stack.append(current)

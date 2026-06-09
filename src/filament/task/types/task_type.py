@@ -12,7 +12,7 @@ from filament.task.queue.task_queue import (
     publish_task_result,
     setup_queue,
 )
-from filament.task.state.task_run_state import initialize_task_run_state
+from filament.state.task_run_state import initialize_task_run_state
 
 from filament.task.types.base import FilamentBaseModel
 from filament.task.types.task_config import FilamentTaskConfig

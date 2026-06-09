@@ -4,12 +4,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from filament.db.models import TaskRun
 from filament.task.constants import TaskState
-from filament.task.state.task_state import transition_state
+from filament.state.task_state import transition_state
 from filament.redis.semaphore import RedisSemaphore
 
 
 from filament.db.session import async_session_scope
-from filament.task.state.task_state import (
+from filament.state.task_state import (
     create_task_run_state,
     get_task_run_state,
     set_parent_task_uuid,

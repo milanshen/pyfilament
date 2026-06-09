@@ -9,7 +9,7 @@ from werkzeug.exceptions import BadRequest, NotFound
 
 from filament.db.models import TaskRun as TaskRunModel
 from filament.db.models import TaskType as TaskTypeModel
-from filament.task.state.task_run_state import cancel_task_run as logic_cancel_task_run
+from filament.state.task_run_state import cancel_task_run as logic_cancel_task_run
 from filament.task.registry.task_type_registry import lookup
 from filament.api.types.task import TaskRun, TaskType
 

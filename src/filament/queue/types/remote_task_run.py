@@ -9,7 +9,7 @@ from filament.queue.task_queue import (
 
 from filament.task.types.task_run import FilamentTaskRun
 from filament.state.task_run_state import initialize_task_run_state
-from filament.task.types.task_result import FilamentTaskResult
+from filament.queue.types.remote_task_result import FilamentRemoteTaskResult
 
 
 class FilamentRemoteTaskRun(FilamentTaskRun):
@@ -30,7 +30,7 @@ class FilamentRemoteTaskRun(FilamentTaskRun):
         try:
             async for task_result_json, is_final in listen_for_task_result(self.uuid):
                 # self._logger.debug(f'remote received {task_result_json}, is_final: {is_final}')
-                task_result = FilamentTaskResult.model_validate_json(task_result_json)
+                task_result = FilamentRemoteTaskResult.model_validate_json(task_result_json)
                 result, exception = task_result._result, task_result._exception
                 if not is_final:
                     assert exception is None, f'Exception only allowed on final chunk: {task_result._exception}'

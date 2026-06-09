@@ -5,7 +5,7 @@ from strawberry.fastapi import GraphQLRouter
 
 import filament.api.resolvers.task as task_resolver
 from filament.db.models import Base
-from filament.types.task import TaskRun, TaskType
+from filament.api.types.task import TaskRun, TaskType
 
 
 def get_session_from_request(request: Request):

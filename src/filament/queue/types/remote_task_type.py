@@ -11,13 +11,14 @@ from filament.queue.task_queue import (
 from filament.state.task_run_state import initialize_task_run_state
 
 from filament.task.types.task_type import FilamentTaskType
-from filament.task.types.task_run import FilamentTaskRun
 from filament.queue.types.remote_task_result import FilamentRemoteTaskResult
 from filament.queue.types.remote_task_run import FilamentRemoteTaskRun
 
 
 class FilamentRemoteTaskType(FilamentTaskType):
-    async def _dequeue_task_run(self, worker_id: str, shutdown_event: anyio.Event) -> tuple[str | None, str | None]:
+    async def _dequeue_task_run(
+        self, worker_id: str, shutdown_event: anyio.Event | None = None
+    ) -> tuple[str | None, str | None]:
         message_id, filament_task_run_json = None, None
         async with anyio.create_task_group() as task_group:
 
@@ -26,16 +27,17 @@ class FilamentRemoteTaskType(FilamentTaskType):
                 message_id, filament_task_run_json = await dequeue_task_run(self, worker_id)
                 cancel_scope.cancel()
 
-            async def _wait_for_shutdown(cancel_scope: anyio.CancelScope):
+            async def _wait_for_shutdown(shutdown_event: anyio.Event, cancel_scope: anyio.CancelScope):
                 await shutdown_event.wait()
                 cancel_scope.cancel()
 
             task_group.start_soon(_wait_for_dequeue_task_run, task_group.cancel_scope)
-            task_group.start_soon(_wait_for_shutdown, task_group.cancel_scope)
+            if shutdown_event is not None:
+                task_group.start_soon(_wait_for_shutdown, shutdown_event, task_group.cancel_scope)
 
         return message_id, filament_task_run_json
 
-    async def serve(self, shutdown_event: anyio.Event | None):
+    async def serve(self, shutdown_event: anyio.Event | None = None):
         worker_id = str(uuid4())
         await setup_queue(self)
         while shutdown_event is None or not shutdown_event.is_set():
@@ -43,7 +45,7 @@ class FilamentRemoteTaskType(FilamentTaskType):
             if message_id is None or filament_task_run_json is None:
                 continue
             try:
-                filament_task_run = FilamentTaskRun.model_validate_json(filament_task_run_json)
+                filament_task_run = FilamentRemoteTaskRun.model_validate_json(filament_task_run_json)
                 filament_task_run.worker_id = worker_id
                 filament_task_run.config.propagate = True  # always propagate so we can catch and serialize
             except Exception as e:

@@ -1,6 +1,6 @@
+from typing import TYPE_CHECKING
 import json
 import traceback
-from typing import TYPE_CHECKING
 
 from pydantic import Field, PrivateAttr
 
@@ -10,11 +10,11 @@ from filament.task.types.base import FilamentBaseModel
 from filament.queue.types.remote_exception import FilamentRemoteException
 
 if TYPE_CHECKING:
-    from filament.task.types.task_type import FilamentTaskType
+    from filament.queue.types.remote_task_type import FilamentRemoteTaskType
 
 
 class FilamentRemoteTaskResult(FilamentBaseModel):
-    type: FilamentTaskType
+    type: FilamentRemoteTaskType
     task_uuid: str
     result_json: str | None = Field(default=None)
     exception_json: str | None = Field(default=None)

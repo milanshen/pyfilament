@@ -10,6 +10,7 @@ from filament.queue.task_queue import (
 )
 from filament.state.task_run_state import initialize_task_run_state
 
+from filament.task.types.task_run import FilamentTaskRun
 from filament.task.types.task_type import FilamentTaskType
 from filament.queue.types.remote_task_result import FilamentRemoteTaskResult
 from filament.queue.types.remote_task_run import FilamentRemoteTaskRun
@@ -45,7 +46,7 @@ class FilamentRemoteTaskType(FilamentTaskType):
             if message_id is None or filament_task_run_json is None:
                 continue
             try:
-                filament_task_run = FilamentRemoteTaskRun.model_validate_json(filament_task_run_json)
+                filament_task_run = FilamentTaskRun.model_validate_json(filament_task_run_json)
                 filament_task_run.worker_id = worker_id
                 filament_task_run.config.propagate = True  # always propagate so we can catch and serialize
             except Exception as e:

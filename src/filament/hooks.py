@@ -9,7 +9,7 @@ from filament.logic.call_stack import peek_task_run
 from filament.logic.func_registry import get_registered_entries
 from filament.redis.semaphore import RedisSemaphore
 from filament.state.task_run_state import cancel_task_run
-from filament.state.task_state import create_task_type_state
+from filament.state.task_type_state import create_task_type_state
 from filament.task.types.task_run import FilamentTaskRun
 
 logger = logging.getLogger(__name__)

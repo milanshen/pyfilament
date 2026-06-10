@@ -1,23 +1,14 @@
-import inspect
 import json
 import logging
-from functools import wraps
-from types import NoneType
 from typing import TYPE_CHECKING
 
 from beartype import beartype
-from beartype.door import TypeHint, UnionTypeHint
-from beartype.typing import Any, Callable, Optional
-from inflection import camelize
-from pydantic import BaseModel, ConfigDict, TypeAdapter, create_model
-from pydantic.errors import PydanticInvalidForJsonSchema, PydanticSchemaGenerationError
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from filament.db.models import TaskRun, TaskRunStateTransition, TaskType, get_utc_now
-from filament.db.session import async_session_scope
-from filament.logic.func_registry import FuncRegistryEntry
 from filament.logic.utils import get_json_dict, json_encode_safe, redact_strings
+from filament.state.common import with_session
 from filament.task.constants import TaskState
 
 if TYPE_CHECKING:
@@ -28,134 +19,12 @@ else:
 logger = logging.getLogger(__name__)
 
 
-REDIS_KEY_PREFIX = 'task_run_row:'
-
-
-@beartype
-def with_session(func: Callable) -> Callable:
-    assert inspect.iscoroutinefunction(func) or inspect.isasyncgenfunction(func), 'Function must be asynchronous'
-
-    @wraps(func)
-    async def wrapper(*args, **kwargs):
-        if 'session' in kwargs and isinstance(kwargs['session'], AsyncSession):
-            session = kwargs.pop('session')
-            return await func(session, *args, **kwargs)
-        if len(args) > 0 and isinstance(args[0], AsyncSession):
-            session = args[0]
-            args = args[1:]
-            return await func(session, *args, **kwargs)
-        else:
-            async with async_session_scope() as session:
-                return await func(session, *args, **kwargs)
-
-    return wrapper
-
-
-@beartype
-def get_key(key: str) -> str:
-    return f'{REDIS_KEY_PREFIX}{key}'
-
-
 @with_session
 @beartype
 async def set_heartbeat(session: AsyncSession, task_run: FilamentTaskRun) -> None:
     statement = select(TaskRun).where(TaskRun.task_uuid == task_run.uuid)
     task_run_row = (await session.execute(statement)).scalars().one()
     task_run_row.heartbeat = get_utc_now()
-
-
-@with_session
-@beartype
-async def create_task_type_state(session: AsyncSession, func_entry: FuncRegistryEntry) -> None:
-    name = func_entry.func_address
-    input_json_schema = get_parameters_spec(func_entry, name)
-    output_json_schema = get_result_spec(func_entry)
-    statement = select(TaskType).where(TaskType.func_address == func_entry.func_address)
-    task_type = (await session.execute(statement)).scalars().one_or_none()
-    if task_type is not None:
-        if task_type.name != name:
-            task_type.name = name
-        if task_type.parameters_spec != input_json_schema:
-            task_type.parameters_spec = input_json_schema
-        if task_type.result_spec != output_json_schema:
-            task_type.result_spec = output_json_schema
-    else:
-        task_type = TaskType(
-            name=name,
-            func_address=func_entry.func_address,
-            parameters_spec=input_json_schema,
-            result_spec=output_json_schema,
-        )
-        session.add(task_type)
-
-
-@beartype
-def is_pydantic_compatible(type_: Any) -> bool:
-    try:
-        TypeAdapter(type_)
-        return True
-    except PydanticSchemaGenerationError:
-        return False
-
-
-@beartype
-def is_optional(type_: Any) -> bool:
-    hint = TypeHint(type_)
-    return isinstance(hint, UnionTypeHint) and NoneType in hint.args
-
-
-@beartype
-def get_parameters_spec(func_entry: FuncRegistryEntry, func_name: str | None = None) -> str | None:
-    func, class_ = func_entry.func, func_entry.class_
-    signature = inspect.signature(func)
-    allowed_types = {}
-    for param_name, param in signature.parameters.items():
-        is_required = param.default == param.empty
-        if param.kind in (param.VAR_POSITIONAL, param.VAR_KEYWORD):
-            continue
-        allowed_type = None
-        if param_name == 'self' and isinstance(class_, type) and issubclass(class_, BaseModel):
-            allowed_type = class_
-        if param.annotation != inspect.Signature.empty:
-            input_type = param.annotation
-            if is_pydantic_compatible(input_type):
-                allowed_type = input_type
-        if allowed_type is not None:
-            if is_required:
-                allowed_types[param_name] = allowed_type
-            elif is_optional(allowed_type):
-                allowed_types[param_name] = allowed_type
-            else:
-                allowed_types[param_name] = Optional[allowed_type]
-        elif is_required:
-            return None
-
-    if func_name is None:
-        func_name = func.__name__
-
-    InputModel = create_model(
-        f'{camelize(func_name)}InputModel',
-        __config__=ConfigDict(use_attribute_docstrings=True, extra='forbid'),
-        **allowed_types,
-    )
-
-    try:
-        return json.dumps(InputModel.model_json_schema(), separators=(',', ':'), default=str)
-    except PydanticInvalidForJsonSchema:
-        return None
-
-
-@beartype
-def get_result_spec(func_entry: FuncRegistryEntry) -> str | None:
-    signature = inspect.signature(func_entry.func)
-    if signature.return_annotation != inspect.Signature.empty:
-        output_format = signature.return_annotation
-        if isinstance(output_format, type) and issubclass(output_format, BaseModel):
-            try:
-                return json.dumps(signature.return_annotation.model_json_schema(), separators=(',', ':'), default=str)
-            except PydanticInvalidForJsonSchema:
-                return None
-    return None
 
 
 @with_session

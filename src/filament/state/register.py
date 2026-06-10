@@ -1,8 +1,7 @@
 from beartype import beartype
 
 from filament.logic.events import EventManager
-from filament.state.task_run_state import initialize_task_run_state
-from filament.state.task_state import set_heartbeat, set_task_result, transition_state
+from filament.state.task_run_state import initialize_task_run_state, set_heartbeat, set_task_result, transition_state
 
 
 @beartype

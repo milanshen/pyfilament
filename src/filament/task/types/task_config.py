@@ -40,10 +40,15 @@ class FilamentTaskConfig(FilamentBaseModel):
             )
         super().__init__(**kwargs)
 
-    def _get_retry_exc_types(self, exception_types: list[type[Exception]]) -> list[FilamentExceptionType]:
-        return [
-            FilamentExceptionType(exc_type)
-            if isinstance(exc_type, type) and issubclass(exc_type, Exception)
-            else exc_type
-            for exc_type in exception_types
-        ]
+    def _get_retry_exc_types(
+        self, exception_types: list[type[Exception] | dict | FilamentExceptionType]
+    ) -> list[FilamentExceptionType]:
+        exception_types = []
+        for exc_type in exception_types:
+            if isinstance(exc_type, type) and issubclass(exc_type, Exception):
+                exception_types.append(FilamentExceptionType(exc_type))
+            elif isinstance(exc_type, dict):
+                exception_types.append(FilamentExceptionType(**exc_type))
+            else:
+                exception_types.append(exc_type)
+        return exception_types

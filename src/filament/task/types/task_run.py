@@ -10,7 +10,6 @@ from uuid import uuid4
 
 import anyio
 from anyio.abc import TaskGroup
-from beartype.typing import Optional, Union
 from pydantic import Field
 
 from filament.logic.cache_utils import (
@@ -50,12 +49,12 @@ class FilamentTaskRun(FilamentBaseModel):
 
     def __init__(
         self,
-        type: FilamentTaskType,
+        type: FilamentTaskType | dict,
         task_args,
         task_kwargs,
         name=None,
         uuid=None,
-        config: Optional[Union[FilamentTaskConfig, dict]] = None,
+        config: FilamentTaskConfig | dict | None = None,
         worker_id: str | None = None,
     ):
         if config is not None:

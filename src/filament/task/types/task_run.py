@@ -23,8 +23,7 @@ from filament.logic.utils import get_function_type
 from filament.redis.logging_handler import JSONFormatter, RedisHandler
 from filament.redis.semaphore import RedisSemaphore
 from filament.redis.token_bucket import RedisTokenBucket
-from filament.state.task_run_state import is_canceled
-from filament.task.constants import DEFAULT_HEARTBEAT_INTERVAL, DEFAULT_MONITOR_INTERVAL, TaskState
+from filament.task.constants import DEFAULT_HEARTBEAT_INTERVAL, TaskState
 from filament.task.types.base import FilamentBaseModel
 from filament.task.types.task_config import FilamentTaskConfig
 
@@ -98,6 +97,7 @@ class FilamentTaskRun(FilamentBaseModel):
         self._exception = None
         self._result_send, self._result_receive = anyio.create_memory_object_stream(math.inf)
         self._done_event = anyio.Event()
+        self._cancelled_event = anyio.Event()
         self._task = None
         logger_name = f'{self.type.func_address}:{self.uuid}'
         self._logger = logging.getLogger(logger_name)
@@ -114,16 +114,18 @@ class FilamentTaskRun(FilamentBaseModel):
         self._task = asyncio.create_task(self.call())
         return self._task
 
+    def cancel(self):
+        self._cancelled_event.set()
+
     async def _start_heartbeat(self) -> None:
         while not self._done_event.is_set():
             await self._events.trigger('task_run.heartbeat', self)
             await anyio.sleep(self.config.heartbeat_interval or DEFAULT_HEARTBEAT_INTERVAL)
 
     async def _start_cancel_monitor(self, task_group: TaskGroup) -> None:
-        while not self._done_event.is_set():
-            if await is_canceled(self.uuid):
-                task_group.cancel_scope.cancel()
-            await anyio.sleep(self.config.monitor_interval or DEFAULT_MONITOR_INTERVAL)
+        if not self._done_event.is_set() and not self._cancelled_event.is_set():
+            await self._cancelled_event.wait()
+            task_group.cancel_scope.cancel()
 
     @contextmanager
     def _register_frame(self):

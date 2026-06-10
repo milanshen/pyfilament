@@ -1,7 +1,6 @@
 import anyio
 
 from filament.filament import task
-from filament.hooks import create_all_task_type_states
 
 
 @task
@@ -19,7 +18,6 @@ async def _run_child():
 
 
 async def test_task():
-    await create_all_task_type_states()
     result = None
 
     async def _start_parent_task(cancel_scope: anyio.CancelScope):

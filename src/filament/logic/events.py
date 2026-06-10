@@ -1,7 +1,10 @@
 import inspect
+import logging
 
 from beartype import beartype
 from beartype.typing import Callable
+
+logger = logging.getLogger(__name__)
 
 
 @beartype

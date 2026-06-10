@@ -6,22 +6,10 @@ from sqlalchemy import select
 from filament.db.models import TaskRun
 from filament.db.session import async_session_scope
 from filament.logic.call_stack import peek_task_run
-from filament.logic.func_registry import get_registered_entries
-from filament.redis.semaphore import RedisSemaphore
 from filament.state.task_run_state import cancel_task_run
-from filament.state.task_type_state import create_task_type_state
 from filament.task.types.task_run import FilamentTaskRun
 
 logger = logging.getLogger(__name__)
-
-
-@beartype
-async def create_all_task_type_states() -> None:
-    semaphore = RedisSemaphore(name='filament_task_type:create_all', max_leases=1, ttl=60)
-    async with semaphore:
-        async with async_session_scope() as session:
-            for func_entry in get_registered_entries():
-                await create_task_type_state(session, func_entry)
 
 
 @beartype

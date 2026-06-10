@@ -11,6 +11,7 @@ from filament.logic.call_stack import peek_task_run
 from filament.logic.utils import get_json_dict, json_encode_safe, redact_strings
 from filament.redis.semaphore import RedisSemaphore
 from filament.state.common import with_session
+from filament.state.task_type_state import create_task_type_state
 from filament.task.constants import TaskState
 
 if TYPE_CHECKING:
@@ -27,6 +28,7 @@ async def initialize_task_run_state(task_run: FilamentTaskRun) -> None:
     )
     async with semaphore:
         async with async_session_scope() as session:
+            await create_task_type_state(session, task_run.type)
             task_run_state = await get_task_run_state(session, task_run.uuid)
             if task_run_state is None:
                 await create_task_run_state(

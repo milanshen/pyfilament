@@ -1,22 +1,36 @@
 from beartype import beartype
+from typing import TYPE_CHECKING
 
-TASK_TYPE_REGISTRY = {}
+if TYPE_CHECKING:
+    from filament.task.types.task_type import FilamentTaskType
+else:
+    FilamentTaskType = 'filament.task.types.task_type.FilamentTaskType'
+
+__TASK_TYPE_REGISTRY = {}
 
 
 @beartype
-def register(task_type: 'filament.task.types.task_type.FilamentTaskType') -> None:
-    TASK_TYPE_REGISTRY[task_type.func_address] = task_type
+def _get_task_type_registry() -> dict[str, FilamentTaskType]:
+    return __TASK_TYPE_REGISTRY
+
+
+@beartype
+def register(task_type: FilamentTaskType) -> None:
+    registry = _get_task_type_registry()
+    registry[task_type.func_address] = task_type
 
 
 @beartype
 def lookup(task_address: str):
-    if task_address not in TASK_TYPE_REGISTRY:
+    registry = _get_task_type_registry()
+    if task_address not in registry:
         module_name, func_name = task_address.split(':')
         __import__(module_name, fromlist=[func_name])
-    assert task_address in TASK_TYPE_REGISTRY, f'Task {task_address} not found'
-    return TASK_TYPE_REGISTRY.get(task_address)
+    assert task_address in registry, f'Task {task_address} not found'
+    return registry.get(task_address)
 
 
 @beartype
 def print_task_registry() -> None:
-    print(TASK_TYPE_REGISTRY.keys())
+    registry = _get_task_type_registry()
+    print(registry.keys())

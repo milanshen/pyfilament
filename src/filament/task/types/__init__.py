@@ -1,5 +1,3 @@
-import sys
-from beartype import beartype
 from .base import FilamentBaseModel
 from .task_config import FilamentTaskConfig
 from .task_run import FilamentTaskRun
@@ -7,6 +5,7 @@ from .task_type import FilamentTaskType
 from .exception_type import FilamentExceptionType
 from .cache_key import FilamentCacheKey
 
+from filament.logic.type_checking import export_models, rebuild_models, beartype_models
 
 MODELS = [
     FilamentBaseModel,
@@ -19,27 +18,6 @@ MODELS = [
 
 __all__ = [model.__name__ for model in MODELS]
 
-# resolve circular imports for pydantic and beartype
-
-
-def _export_models():
-    for to_model in MODELS:
-        to_module = sys.modules[to_model.__module__]
-        for from_model in MODELS:
-            if from_model is not to_model:
-                setattr(to_module, from_model.__name__, from_model)
-
-
-def _rebuild_models():
-    for model in FilamentBaseModel.__subclasses__():
-        model.model_rebuild()
-
-
-def _beartype_models():
-    for model in MODELS:
-        beartype(model)
-
-
-_export_models()
-_rebuild_models()
-_beartype_models()
+export_models(MODELS)
+rebuild_models(MODELS)
+beartype_models(MODELS)

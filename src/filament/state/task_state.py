@@ -22,7 +22,7 @@ from filament.task.constants import TaskState
 logger = logging.getLogger(__name__)
 
 
-REDIS_KEY_PREFIX = 'task_run:'
+REDIS_KEY_PREFIX = 'task_run_row:'
 
 
 @beartype
@@ -54,8 +54,8 @@ def get_key(key: str) -> str:
 @beartype
 async def set_heartbeat(session: AsyncSession, task_uuid: str) -> None:
     statement = select(TaskRun).where(TaskRun.task_uuid == task_uuid)
-    task_run = (await session.execute(statement)).scalars().one()
-    task_run.heartbeat = get_utc_now()
+    task_run_row = (await session.execute(statement)).scalars().one()
+    task_run_row.heartbeat = get_utc_now()
 
 
 @with_session
@@ -156,16 +156,16 @@ def get_result_spec(func_entry: FuncRegistryEntry) -> str | None:
 @beartype
 async def get_task_run_state(session: AsyncSession, task_uuid: str) -> TaskRun | None:
     statement = select(TaskRun).where(TaskRun.task_uuid == task_uuid)
-    task_run = (await session.execute(statement)).scalars().one_or_none()
-    return task_run
+    task_run_row = (await session.execute(statement)).scalars().one_or_none()
+    return task_run_row
 
 
 @with_session
 @beartype
 async def get_task_run_dict(session: AsyncSession, task_uuid: str) -> dict | None:
-    task_run = await get_task_run_state(session, task_uuid)
-    if task_run is not None:
-        return get_json_dict(task_run)
+    task_run_row = await get_task_run_state(session, task_uuid)
+    if task_run_row is not None:
+        return get_json_dict(task_run_row)
     return None
 
 
@@ -183,29 +183,29 @@ async def create_task_run_state(
     task_type = (await session.execute(statement)).scalars().one_or_none()
     if task_type is None:
         raise ValueError(f'No task type found for func_address {func_address}')
-    task_run = TaskRun(name=name, task_uuid=task_uuid, task_type_id=task_type.id)
+    task_run_row = TaskRun(name=name, task_uuid=task_uuid, task_type_id=task_type.id)
     encodable_parameters = json_encode_safe(parameters)
     if is_redact:
         encodable_parameters = redact_strings(encodable_parameters)
     if parameters is not None:
-        task_run.parameters_json = json.dumps(encodable_parameters, separators=(',', ':'), default=str)
-    session.add(task_run)
+        task_run_row.parameters_json = json.dumps(encodable_parameters, separators=(',', ':'), default=str)
+    session.add(task_run_row)
 
 
 @with_session
 @beartype
 async def transition_state(session: AsyncSession, task_uuid: str, new_state: TaskState) -> None:
     statement = select(TaskRun).where(TaskRun.task_uuid == task_uuid)
-    task_run = (await session.execute(statement)).scalars().one()
-    old_state = task_run.state
+    task_run_row = (await session.execute(statement)).scalars().one()
+    old_state = task_run_row.state
     if old_state == new_state:
         return
     if new_state == TaskState.RUNNING:
-        task_run.run_count += 1
-    task_run.state = new_state
-    task_run.state_since = get_utc_now()
+        task_run_row.run_count += 1
+    task_run_row.state = new_state
+    task_run_row.state_since = get_utc_now()
     transition = TaskRunStateTransition(
-        task_uuid=task_uuid, from_state=old_state, to_state=new_state, state_since=task_run.state_since
+        task_uuid=task_uuid, from_state=old_state, to_state=new_state, state_since=task_run_row.state_since
     )
     session.add(transition)
 
@@ -220,34 +220,34 @@ async def set_task_result(
     is_redact: bool = False,
 ) -> None:
     statement = select(TaskRun).where(TaskRun.task_uuid == task_uuid)
-    task_run = (await session.execute(statement)).scalars().one()
+    task_run_row = (await session.execute(statement)).scalars().one()
     if exception is not None:
         result = exception
     encodable_result = json_encode_safe(result)
     if is_redact:
         encodable_result = redact_strings(encodable_result)
-    task_run.result_json = json.dumps(encodable_result, separators=(',', ':'), default=str)
+    task_run_row.result_json = json.dumps(encodable_result, separators=(',', ':'), default=str)
 
 
 @with_session
 @beartype
 async def is_canceled(session: AsyncSession, task_uuid: str) -> bool:
     statement = select(TaskRun).where(TaskRun.task_uuid == task_uuid)
-    task_run = (await session.execute(statement)).scalars().one()
-    return task_run.state == TaskState.CANCELLED
+    task_run_row = (await session.execute(statement)).scalars().one()
+    return task_run_row.state == TaskState.CANCELLED
 
 
 @with_session
 @beartype
 async def set_parent_task_uuid(session: AsyncSession, task_uuid: str, parent_task_uuid: str) -> None:
     statement = select(TaskRun).where(TaskRun.task_uuid == task_uuid)
-    task_run = (await session.execute(statement)).scalars().one()
-    task_run.parent_task_uuid = parent_task_uuid
+    task_run_row = (await session.execute(statement)).scalars().one()
+    task_run_row.parent_task_uuid = parent_task_uuid
 
 
 @with_session
 @beartype
 async def get_parent_task_run_uuid(session: AsyncSession, task_uuid: str) -> str | None:
     statement = select(TaskRun).where(TaskRun.task_uuid == task_uuid)
-    task_run = (await session.execute(statement)).scalars().one_or_none()
-    return task_run.parent_task_uuid if task_run else None
+    task_run_row = (await session.execute(statement)).scalars().one_or_none()
+    return task_run_row.parent_task_uuid if task_run_row else None

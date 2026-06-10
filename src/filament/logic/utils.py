@@ -53,7 +53,7 @@ def get_function_type(func):
         return 'unknown: {}'.format(type(func))
 
 
-def json_encode_safe(obj, max_list_size=32, max_dict_size=64, max_bytes_size=1024):
+def get_json_encodable(obj, max_list_size=32, max_dict_size=64, max_bytes_size=1024):
     if obj is None:
         return None
     elif isinstance(obj, int) or isinstance(obj, float) or isinstance(obj, bool):
@@ -61,29 +61,29 @@ def json_encode_safe(obj, max_list_size=32, max_dict_size=64, max_bytes_size=102
     elif isinstance(obj, list):
         should_trim = len(obj) > max_list_size * 2
         if should_trim:
-            return [json_encode_safe(i) for i in obj[:max_list_size]] + [f'... (+{len(obj) - max_list_size})']
-        return [json_encode_safe(i) for i in obj]
+            return [get_json_encodable(i) for i in obj[:max_list_size]] + [f'... (+{len(obj) - max_list_size})']
+        return [get_json_encodable(i) for i in obj]
     elif isinstance(obj, dict):
         keys = list(obj.keys())
         should_trim = len(obj) > max_dict_size * 2
         if should_trim:
             keys = keys[:max_dict_size]
-        results = {json_encode_safe(k): json_encode_safe(obj[k]) for k in keys}
+        results = {get_json_encodable(k): get_json_encodable(obj[k]) for k in keys}
         if should_trim:
             results['...'] = f'(+{len(obj) - max_dict_size})'
         return results
     elif isinstance(obj, datetime):
         return obj.isoformat()
     elif isinstance(obj, set) or isinstance(obj, tuple) or isinstance(obj, frozenset):
-        return json_encode_safe(list(obj))
+        return get_json_encodable(list(obj))
     elif isinstance(obj, BaseModel):
-        return json_encode_safe(obj.model_dump())
+        return get_json_encodable(obj.model_dump())
     elif isinstance(obj, defaultdict):
-        return json_encode_safe(dict(obj))
+        return get_json_encodable(dict(obj))
     elif isinstance(obj, PandasDataFrame):
-        return json_encode_safe(obj.to_dict(orient='records'))
+        return get_json_encodable(obj.to_dict(orient='records'))
     elif isinstance(obj, PolarsDataFrame):
-        return json_encode_safe(obj.to_dicts())
+        return get_json_encodable(obj.to_dicts())
     elif isinstance(obj, bytes):
         content = f'0x{obj.hex()}'
         should_trim = len(obj) > max_bytes_size * 2
@@ -97,7 +97,7 @@ def json_encode_safe(obj, max_list_size=32, max_dict_size=64, max_bytes_size=102
         return obj
     elif isinstance(obj, object) and is_dataclass(obj):
         attr_names = [field.name for field in dataclasses_fields(obj)]
-        return {json_encode_safe(attr): json_encode_safe(getattr(obj, attr)) for attr in attr_names}
+        return {get_json_encodable(attr): get_json_encodable(getattr(obj, attr)) for attr in attr_names}
     elif isinstance(obj, Exception):
         result = {
             'type': type(obj).__name__,

@@ -6,7 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from filament.db.models import TaskRun, TaskRunStateTransition, TaskType, get_utc_now
-from filament.logic.utils import json_encode_safe, redact_strings
+from filament.logic.utils import get_json_encodable, redact_strings
 from filament.state.common import with_session
 from filament.task.constants import TaskState
 
@@ -53,7 +53,7 @@ async def create_task_run_state(session: AsyncSession, task_run: FilamentTaskRun
     task_run_row = TaskRun(name=task_run.name, task_uuid=task_run.uuid, task_type_id=task_type.id)
     parameters = task_run._get_call_parameters()
     if parameters is not None:
-        encodable_parameters = json_encode_safe(parameters)
+        encodable_parameters = get_json_encodable(parameters)
         if task_run.config.is_redact_input:
             encodable_parameters = redact_strings(encodable_parameters)
         task_run_row.parameters_json = json.dumps(encodable_parameters, separators=(',', ':'), default=str)
@@ -84,7 +84,7 @@ async def transition_state(session: AsyncSession, task_run: FilamentTaskRun, new
 async def set_task_result(session: AsyncSession, task_run: FilamentTaskRun) -> None:
     statement = select(TaskRun).where(TaskRun.task_uuid == task_run.uuid)
     task_run_row = (await session.execute(statement)).scalars().one()
-    encodable_result = json_encode_safe(task_run._result or task_run._exception)
+    encodable_result = get_json_encodable(task_run._result or task_run._exception)
     if task_run.config.is_redact_output:
         encodable_result = redact_strings(encodable_result)
     task_run_row.result_json = json.dumps(encodable_result, separators=(',', ':'), default=str)

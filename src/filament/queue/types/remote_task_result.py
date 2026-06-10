@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 from pydantic import Field, PrivateAttr
 
 from filament.logic.module_type_registry import lookup_module_type, register_module_type
-from filament.logic.utils import json_encode_safe
+from filament.logic.utils import get_json_encodable
 from filament.queue.types.remote_exception import FilamentRemoteException
 from filament.task.types.base import FilamentBaseModel
 
@@ -23,7 +23,7 @@ class FilamentRemoteTaskResult(FilamentBaseModel):
 
     def __init__(self, result=None, exception=None, **kwargs):
         if result is not None:
-            kwargs['result_json'] = json.dumps(json_encode_safe(result))
+            kwargs['result_json'] = json.dumps(get_json_encodable(result))
         if exception is not None:
             kwargs['exception_json'] = json.dumps(
                 {

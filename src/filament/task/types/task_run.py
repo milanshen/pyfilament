@@ -308,6 +308,7 @@ class FilamentTaskRun(FilamentBaseModel):
     async def call(self):
         await self._events.trigger('task_run.before_call', self)
         async with anyio.create_task_group() as task_group:
+            await self._events.trigger('task_run.created_task_group', self, task_group)
             if self.config.heartbeat:
                 task_group.start_soon(self._start_heartbeat)
             if self.config.monitor:

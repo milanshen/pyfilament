@@ -1,3 +1,6 @@
+from typing import AsyncGenerator
+
+import anyio
 from beartype import beartype
 from sqlalchemy import select
 
@@ -6,8 +9,15 @@ from filament.db.session import async_session_scope
 from filament.logic.call_stack import peek_task_run
 from filament.logic.events import EventManager
 from filament.redis.semaphore import RedisSemaphore
-from filament.state.task_run_state import create_task_run_state, set_heartbeat, set_task_result, transition_state
+from filament.state.task_run_state import (
+    create_task_run_state,
+    is_canceled,
+    set_heartbeat,
+    set_task_result,
+    transition_state,
+)
 from filament.state.task_type_state import upsert_task_type_state
+from filament.task.constants import DEFAULT_MONITOR_INTERVAL
 from filament.task.types.task_run import FilamentTaskRun
 
 
@@ -15,6 +25,7 @@ from filament.task.types.task_run import FilamentTaskRun
 def register_task_events(events: EventManager) -> None:
     events.on('task_run.request')(initialize_task_run_state)
     events.on('task_run.before_call')(initialize_task_run_state)
+    events.on('task_run.created_task_group')(monitor_task_cancellation)
     events.on('task_run.after_call')(set_task_result)
     events.on('task_run.state_transition')(transition_state)
     events.on('task_run.heartbeat')(set_heartbeat)
@@ -39,3 +50,16 @@ async def initialize_task_run_state(task_run: FilamentTaskRun) -> None:
                 parent_task_run = peek_task_run()
                 if parent_task_run is not None:
                     task_run_row.parent_task_uuid = parent_task_run.uuid
+
+
+@beartype
+async def listen_for_task_cancelled(task_uuid: str, cancel_scope: anyio.CancelScope) -> AsyncGenerator[bool, None]:
+    while True:
+        if await is_canceled(task_uuid):
+            cancel_scope.cancel()
+        await anyio.sleep(DEFAULT_MONITOR_INTERVAL)
+
+
+@beartype
+async def monitor_task_cancellation(task_run: FilamentTaskRun, task_group: anyio.TaskGroup) -> None:
+    task_group.start_soon(listen_for_task_cancelled, task_run.uuid, task_group.cancel_scope)

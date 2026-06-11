@@ -17,11 +17,11 @@ else:
 
 
 @beartype
-async def cancel_task_run(session: AsyncSession, task_run: TaskRun):
-    if task_run.state in TaskState.TERMINAL:
-        return task_run
-    await transition_state(session, task_run.task_uuid, TaskState.CANCELLED)
-    for child_task_run in await task_run.awaitable_attrs.child_tasks:
+async def cancel_task_run(session: AsyncSession, task_run_row: TaskRun) -> None:
+    if task_run_row.state in TaskState.TERMINAL:
+        return
+    await _transition_state(session, task_run_row, TaskState.CANCELLED)
+    for child_task_run in await task_run_row.awaitable_attrs.child_tasks:
         await cancel_task_run(session, child_task_run)
 
 
@@ -66,6 +66,11 @@ async def create_task_run_state(session: AsyncSession, task_run: FilamentTaskRun
 async def transition_state(session: AsyncSession, task_run: FilamentTaskRun, new_state: TaskState) -> None:
     statement = select(TaskRun).where(TaskRun.task_uuid == task_run.uuid)
     task_run_row = (await session.execute(statement)).scalars().one()
+    await _transition_state(session, task_run_row, new_state)
+
+
+@beartype
+async def _transition_state(session: AsyncSession, task_run_row: TaskRun, new_state: TaskState) -> None:
     old_state = task_run_row.state
     if old_state == new_state:
         return
@@ -74,7 +79,7 @@ async def transition_state(session: AsyncSession, task_run: FilamentTaskRun, new
     task_run_row.state = new_state
     task_run_row.state_since = get_utc_now()
     transition = TaskRunStateTransition(
-        task_uuid=task_run.uuid, from_state=old_state, to_state=new_state, state_since=task_run_row.state_since
+        task_uuid=task_run_row.task_uuid, from_state=old_state, to_state=new_state, state_since=task_run_row.state_since
     )
     session.add(transition)
 

@@ -778,6 +778,23 @@ files = [
 ]
 
 [[package]]
+name = "mock"
+version = "5.2.0"
+description = "Rolling backport of unittest.mock for all Pythons"
+optional = false
+python-versions = ">=3.6"
+groups = ["dev"]
+files = [
+    {file = "mock-5.2.0-py3-none-any.whl", hash = "sha256:7ba87f72ca0e915175596069dbbcc7c75af7b5e9b9bc107ad6349ede0819982f"},
+    {file = "mock-5.2.0.tar.gz", hash = "sha256:4e460e818629b4b173f32d08bf30d3af8123afbb8e04bb5707a1fd4799e503f0"},
+]
+
+[package.extras]
+build = ["blurb", "twine", "wheel"]
+docs = ["sphinx"]
+test = ["pytest", "pytest-cov"]
+
+[[package]]
 name = "mypy"
 version = "1.20.2"
 description = "Optional static typing for Python"
@@ -1738,4 +1755,4 @@ dev = ["aiosqlite"]
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.14"
-content-hash = "ec735729d02123a8eb8e5bec3d132118167c2713c7bd2220ebf3cc7bfd6c1a2a"
+content-hash = "62ac96251eefc3e908339e531eeabf111ecccb4cdcc012883e8577155615cfa7"

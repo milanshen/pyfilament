@@ -20,13 +20,6 @@ from sqlalchemy import inspect as sqlalchemy_inspect
 from filament.db.models import Base
 
 
-def get_arg_name(*args, **kwargs):
-    args_name_parts = []
-    args_name_parts += [f'{arg}' for arg in args]
-    args_name_parts += [f'{key}={value}' for key, value in kwargs.items()]
-    return ', '.join(args_name_parts)
-
-
 def now(ceil=False, places=1):
     divisor = 10**places
     if not ceil:

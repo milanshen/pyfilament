@@ -1,3 +1,5 @@
+import asyncio
+
 import anyio
 from anyio.abc import TaskGroup
 
@@ -21,7 +23,9 @@ class FilamentRemoteTaskRun(FilamentTaskRun):
         try:
             await self._done_event.wait()
         except anyio.get_cancelled_exc_class():
-            await publish_task_cancelled(self.uuid)
+            self._logger.info(f'Publishing task cancelled for {self.uuid}')
+            await asyncio.shield(publish_task_cancelled(self.uuid))
+            self._logger.info(f'Task cancelled published for {self.uuid}')
             raise
         return await self.result()
 

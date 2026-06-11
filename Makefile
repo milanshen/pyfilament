@@ -15,3 +15,14 @@ lint:
 
 test:
 	poetry run pytest
+
+test-coverage:
+	poetry run coverage run -m pytest
+
+coverage-clean:
+	rm -rf .coverage*
+
+coverage-report:
+	poetry run coverage xml -o .coverage.xml && poetry run coverage html -d .coverage_html && poetry run diff-cover .coverage.xml --compare-branch=main --html-report .coverage_diff.html
+
+coverage: coverage-clean test-coverage coverage-report

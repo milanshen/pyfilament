@@ -51,33 +51,30 @@ class FilamentRemoteTaskType(FilamentTaskType):
             except Exception as e:
                 self._logger.exception(e)
                 continue
-            result, exception = None, None
-            if inspect.isasyncgenfunction(self._func):
-                try:
-                    async for result in filament_task_run:
-                        task_result = FilamentRemoteTaskResult(
-                            type=self,
-                            task_uuid=filament_task_run.uuid,
-                            result=result,
-                            exception=exception,
-                        )
-                        await publish_task_result(task_result, is_final=False)
-                except (Exception, anyio.get_cancelled_exc_class()) as e:
-                    exception = e
-                    self._logger.exception(e)
-            else:
-                try:
-                    result = await filament_task_run
-                except (Exception, anyio.get_cancelled_exc_class()) as e:
-                    exception = e
-                    self._logger.exception(e)
-            task_result = FilamentRemoteTaskResult(
-                type=self,
-                task_uuid=filament_task_run.uuid,
-                result=result,
-                exception=exception,
-            )
-            await publish_task_result(task_result, is_final=True, message_id=message_id)
+            await self._service_task_run(filament_task_run, message_id)
+
+    async def _service_task_run(self, filament_task_run: FilamentTaskRun, message_id: str):
+        result, exception = None, None
+        if inspect.isasyncgenfunction(self._func):
+            try:
+                async for result in filament_task_run:
+                    task_result = FilamentRemoteTaskResult(
+                        type=self, task_uuid=filament_task_run.uuid, result=result, exception=exception
+                    )
+                    await publish_task_result(task_result, is_final=False)
+            except (Exception, anyio.get_cancelled_exc_class()) as e:
+                exception = e
+                self._logger.exception(e)
+        else:
+            try:
+                result = await filament_task_run
+            except (Exception, anyio.get_cancelled_exc_class()) as e:
+                exception = e
+                self._logger.exception(e)
+        task_result = FilamentRemoteTaskResult(
+            type=self, task_uuid=filament_task_run.uuid, result=result, exception=exception
+        )
+        await publish_task_result(task_result, is_final=True, message_id=message_id)
 
     async def request(self, *task_args, **task_kwargs) -> FilamentRemoteTaskRun:
         return await self._request(task_args, task_kwargs)

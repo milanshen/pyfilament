@@ -3,39 +3,14 @@ on:
   release:
     types: [published]
 jobs:
-  bump-version:
-    permissions:
-      contents: write
-      pull-requests: write
-    runs-on: ubuntu-latest
-    steps:
-    - name: Check out repository
-      uses: actions/checkout@v6
-      with:
-        ref: ${{ github.ref }}
-    - name: Update pyproject.toml version
-      run: |
-        # Strip the 'v' prefix from the tag name (e.g., v1.0.0 -> 1.0.0)
-        VERSION="${{ github.event.release.tag_name }}"
-        VERSION="${VERSION#v}"        
-        # Update the version in pyproject.toml using sed
-        sed -i "s/^version = \".*\"/version = \"$VERSION\"/" pyproject.toml
-    - name: Commit and push changes
-      run: |
-        git config --local user.email "github-actions[bot]@users.noreply.github.com"
-        git config --local user.name "github-actions[bot]"
-        git add pyproject.toml
-        git commit -m "bump version to ${{ github.event.release.tag_name }} [skip ci]" || echo "No changes to commit"
-        git push
-
   publish-pypi:
-    needs: bump-version
     runs-on: ubuntu-latest
     steps:
     - name: Check out repository
       uses: actions/checkout@v6
       with:
-        ref: ${{ github.ref }}
+        fetch-depth: 0
+        fetch-tags: true
     - name: Install uv
       uses: astral-sh/setup-uv@v8.2.0
       with:
@@ -52,7 +27,6 @@ jobs:
         uv publish --token ${{ secrets.PYPI_API_TOKEN }}
 
   build-docker:
-    needs: bump-version
     permissions:
       packages: write
       contents: read
@@ -61,7 +35,8 @@ jobs:
     - name: Check out repository
       uses: actions/checkout@v6
       with:
-        ref: ${{ github.ref }}
+        fetch-depth: 0
+        fetch-tags: true
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
     - name: Log in to the Container registry

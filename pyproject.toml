@@ -23,7 +23,7 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "http://pyfilament.io/"
+Homepage = "https://pyfilament.io/"
 Repository = "https://github.com/pyfilament/pyfilament"
 "Bug Tracker" = "https://github.com/pyfilament/pyfilament/issues"
 

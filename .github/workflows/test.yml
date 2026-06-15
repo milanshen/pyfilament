@@ -21,6 +21,6 @@ jobs:
         python-version: '3.14'
         cache: 'poetry'
     - name: Install dependencies
-      run: poetry install
+      run: poetry install --extras dev
     - name: Run tests
       run: poetry run pytest

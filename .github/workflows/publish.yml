@@ -1,0 +1,31 @@
+name: publish
+on:
+  workflow_dispatch:
+jobs:
+  publish:
+    permissions:
+      contents: read
+      pull-requests: write
+    runs-on: ubuntu-latest
+    services:
+      redis:
+        image: redis:latest
+        ports:
+          - 6379:6379
+        options: --health-cmd "redis-cli ping" --health-interval 10s --health-timeout 5s --health-retries 5
+    steps:
+    - name: Check out repository
+      uses: actions/checkout@v6
+    - name: Install poetry
+      run: pipx install poetry
+    - name: Set up Python
+      uses: actions/setup-python@v6
+      with:
+        python-version: '3.14'
+        cache: 'poetry'
+    - name: Install dependencies
+      run: poetry install --extras dev
+    - name: Publish to PyPI
+      run: |
+        poetry config pypi-token.pypi ${{ secrets.PYPI_API_TOKEN }}
+        poetry publish

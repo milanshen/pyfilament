@@ -1,0 +1,101 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "name": "Pyfilament",
+  "theme": "luma",
+  "colors": {
+    "primary": "#040404",
+    "light": "#6b7280",
+    "dark": "#040404"
+  },
+  "logo": {
+    "light": "https://media.brand.dev/561f8f59-3df7-4cae-b97a-bf1b8bb895e8.svg",
+    "dark": "https://media.brand.dev/561f8f59-3df7-4cae-b97a-bf1b8bb895e8.svg"
+  },
+  "favicon": "https://icons.duckduckgo.com/ip3/pyfilament.io.ico",
+  "navbar": {
+    "primary": {
+      "type": "github",
+      "href": "https://github.com/pyfilament/pyfilament"
+    }
+  },
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "quickstart",
+              "installation"
+            ]
+          },
+          {
+            "group": "Core Concepts",
+            "pages": [
+              "concepts/tasks",
+              "concepts/task-runs",
+              "concepts/workers",
+              "concepts/task-states"
+            ]
+          },
+          {
+            "group": "Task Configuration",
+            "pages": [
+              "configuration/retries",
+              "configuration/timeouts",
+              "configuration/caching",
+              "configuration/rate-limiting",
+              "configuration/concurrency"
+            ]
+          },
+          {
+            "group": "Distributed Execution",
+            "pages": [
+              "distributed/queues",
+              "distributed/workers",
+              "distributed/subtasks"
+            ]
+          },
+          {
+            "group": "Observability",
+            "pages": [
+              "observability/dashboard",
+              "observability/logging",
+              "observability/cancellation"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "Python API",
+            "pages": [
+              "api/task-decorator",
+              "api/task-config",
+              "api/hooks",
+              "api/task-states"
+            ]
+          },
+          {
+            "group": "GraphQL API",
+            "pages": [
+              "api/graphql-overview",
+              "api/graphql-queries",
+              "api/graphql-mutations"
+            ]
+          },
+          {
+            "group": "REST API",
+            "pages": [
+              "api/rest-task-runs"
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,111 @@
+---
+title: "Pyfilament REST API: Task Run and Download Endpoints"
+sidebarTitle: "REST Task Runs"
+description: "Reference for Pyfilament's three REST endpoints: fetch a single task run, fetch multiple by comma-separated IDs, or download a run tree as a JSON file."
+---
+
+Pyfilament's REST API provides three endpoints for fetching task run data, including the full subtask tree. These endpoints power the dashboard but are also available for your own integrations.
+
+<Note>
+  All REST endpoints return camelCase keys in their JSON responses.
+</Note>
+
+---
+
+## GET /api/task-run/{task_run_id}
+
+Fetch a single task run and its nested subtask tree.
+
+**Path parameters:**
+
+<ParamField path="task_run_id" type="integer" required>
+  The database ID of the task run.
+</ParamField>
+
+**Query parameters:**
+
+<ParamField query="max_child_tasks" type="integer" default="100">
+  Maximum number of subtasks to include per level of the tree.
+</ParamField>
+
+<ParamField query="child_depth" type="integer" default="3">
+  Maximum depth of the subtask tree to traverse. A depth of `3` includes the task run itself plus three levels of nested child tasks.
+</ParamField>
+
+**Response:** `200 OK` — JSON object representing the task run with nested `childTasks`.
+
+```json
+{
+  "id": 42,
+  "taskUuid": "abc123-def456",
+  "name": "process_order(abc123)",
+  "state": "success",
+  "stateSince": "2024-01-15T10:30:00Z",
+  "heartbeat": "2024-01-15T10:30:05Z",
+  "runCount": 1,
+  "parametersJson": "{\"order_id\": \"ord-999\"}",
+  "resultJson": "{\"status\": \"processed\"}",
+  "childTasks": [...]
+}
+```
+
+---
+
+## GET /api/task-runs/{task_run_ids_str}
+
+Fetch multiple task runs by a comma-separated list of database IDs. Returns a JSON array in the same order as the input IDs. Returns `404 Not Found` if any ID does not exist.
+
+**Path parameters:**
+
+<ParamField path="task_run_ids_str" type="string" required>
+  Comma-separated list of task run database IDs, e.g. `1,2,3`.
+</ParamField>
+
+**Query parameters:**
+
+<ParamField query="max_child_tasks" type="integer" default="100">
+  Maximum subtasks per level of the tree for each returned run.
+</ParamField>
+
+<ParamField query="child_depth" type="integer" default="3">
+  Maximum subtask tree depth for each returned run.
+</ParamField>
+
+**Response:** `200 OK` — JSON array of task run objects.
+
+**Example request:**
+
+```
+GET /api/task-runs/1,2,3
+```
+
+---
+
+## GET /api/task-run/{task_run_id}/download
+
+Download a task run tree as a JSON file. Identical to the single-run fetch endpoint but returns the response as a file attachment.
+
+**Path parameters:**
+
+<ParamField path="task_run_id" type="integer" required>
+  The database ID of the task run to download.
+</ParamField>
+
+**Query parameters:**
+
+<ParamField query="max_child_tasks" type="integer" default="100">
+  Maximum subtasks per level.
+</ParamField>
+
+<ParamField query="child_depth" type="integer" default="3">
+  Maximum subtask tree depth.
+</ParamField>
+
+**Response:** `200 OK` with `Content-Type: application/json` and a `Content-Disposition` header that triggers a file download. The filename is set to `task_run_{id}.json`.
+
+**Example response headers:**
+
+```
+Content-Type: application/json
+Content-Disposition: attachment; filename="task_run_42.json"
+```

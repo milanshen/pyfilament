@@ -1,0 +1,115 @@
+---
+title: "Weather Agent Example"
+sidebarTitle: "Weather agent"
+description: "Build a tool-use agent loop on the Anthropic API where every model call and tool call is its own Pyfilament task run, with retries and caching on the model call."
+---
+
+This example wraps a tool-use agent loop in Pyfilament tasks. The agent answers weather questions by calling a `get_weather` tool, and each model request and tool call becomes its own task run. There is no queue or worker — every task runs in-process with a plain `await`, but you still get the full call tree for free.
+
+## Prerequisites
+
+- An Anthropic API key in your environment.
+- The Anthropic SDK: `pip install anthropic`.
+
+```bash
+export ANTHROPIC_API_KEY=sk-ant-...
+```
+
+## How it works
+
+The example defines three tasks and one plain agent loop:
+
+- `get_weather` — the tool. Looks up canned weather data for a city. Each call is its own run, so you can see exactly which cities the model asked about.
+- `call_model` — wraps the Anthropic request. Configured with `tries=3, delay=1, cache=True, cache_ttl=3600`, so a flaky network is retried and an identical question is answered (and paid for) once.
+- `answer_weather_question` — runs the tool-use loop: ask the model, run any `get_weather` call it requests, feed the result back, and repeat until it produces a final answer.
+
+### The tool
+
+The `@task` lives on the real work. It is a normal async function with a clean, serializable signature, so Pyfilament records its input (`city`) and output.
+
+```python examples/get_weather.py
+@task
+async def get_weather(city: str) -> str:
+    logger = get_logger()
+    logger.info('Looking up weather for %s', city)
+    return FAKE_WEATHER.get(city.lower(), f'No data for {city}; assume 20°C and mild.')
+```
+
+### The model call
+
+Wrapping the model call in a `@task` gives each request its own run, plus retries on a flaky network. `cache` keys on the arguments, so re-asking an identical question hits the cache instead of the API.
+
+```python examples/get_weather.py
+@task(tries=3, delay=1, cache=True, cache_ttl=3600)
+async def call_model(messages: list[dict]) -> dict:
+    logger = get_logger()
+    response = await client.messages.create(
+        model=MODEL,
+        max_tokens=1024,
+        tools=[WEATHER_TOOL],
+        messages=messages,
+    )
+    usage = response.usage
+    logger.info(
+        'model call: stop=%s, input=%s, output=%s',
+        response.stop_reason,
+        usage.input_tokens,
+        usage.output_tokens,
+    )
+    # Return a plain dict so the result round-trips cleanly through filament.
+    return {
+        'stop_reason': response.stop_reason,
+        'content': [block.model_dump() for block in response.content],
+    }
+```
+
+### The agent loop
+
+`answer_weather_question` drives the conversation. It calls the model, runs each requested tool call as its own task run, and hands the results back until the model stops requesting tools.
+
+```python examples/get_weather.py
+@task
+async def answer_weather_question(question: str) -> str:
+    logger = get_logger()
+    logger.info('Question: %s', question)
+    messages: list[dict] = [{'role': 'user', 'content': question}]
+
+    while True:
+        reply = await call_model(messages)
+        messages.append({'role': 'assistant', 'content': reply['content']})
+
+        if reply['stop_reason'] != 'tool_use':
+            # No tool requested — gather the text blocks and we're done.
+            text = ' '.join(b['text'] for b in reply['content'] if b['type'] == 'text')
+            return text.strip()
+
+        # Run each requested tool call as its own filament run, then hand the
+        # results back to the model in a single user turn.
+        tool_results = []
+        for block in reply['content']:
+            if block['type'] != 'tool_use':
+                continue
+            weather = await get_weather(block['input']['city'])
+            tool_results.append({'type': 'tool_result', 'tool_use_id': block['id'], 'content': weather})
+        messages.append({'role': 'user', 'content': tool_results})
+```
+
+## Run it
+
+```bash
+python -m examples.get_weather
+```
+
+The script asks two questions, including one that forces the model to look up two cities in a single turn. Each model call and each `get_weather` lookup shows up as a separate run in the call tree.
+
+## What to notice
+
+- **The `@task` goes on the real work, as deep as possible.** Decorating `get_weather` and `call_model` — not just the top-level loop — is what produces a useful call tree. See [Tasks](/concepts/tasks).
+- **Caching keys on the arguments.** Because `call_model` uses `cache=True`, replaying an identical conversation prefix returns the stored response instead of calling the API again. See [Caching](/configuration/caching).
+- **Return serializable values.** `call_model` returns a plain dict (built from `block.model_dump()`) so the result round-trips cleanly through Pyfilament's persistence layer.
+
+<Tip>
+  The canned `FAKE_WEATHER` data keeps the example offline and deterministic. Swap
+  it for a real weather API call and it stays a single `@task` — the agent loop does
+  not change.
+</Tip>

@@ -1,0 +1,41 @@
+---
+title: "Pyfilament Examples"
+sidebarTitle: "Overview"
+description: "Runnable Pyfilament examples, from a minimal nested-task script to a distributed web-analysis pipeline backed by a Redis queue and workers."
+---
+
+Each example is a self-contained script you can run from the repository root. They build up from a single in-process task to a distributed pipeline, so you can pick the one that matches what you are trying to learn.
+
+<CardGroup cols={2}>
+  <Card title="Hello world" icon="hand-wave" href="/examples/hello-world">
+    Two nested tasks that show parent-child run tracking and scoped logging. No external services required.
+  </Card>
+  <Card title="Weather agent" icon="cloud-sun" href="/examples/weather-agent">
+    A tool-use agent loop built on the Anthropic API. Every model call and tool call is its own task run.
+  </Card>
+  <Card title="Web analyst" icon="server" href="/examples/web-analyst">
+    A distributed fetch-and-summarize pipeline. Submit jobs to a Redis queue and process them with one or more workers.
+  </Card>
+</CardGroup>
+
+## Running the examples
+
+Every example runs as a module from the repository root:
+
+```bash
+python -m examples.hello_world
+```
+
+The weather agent and web analyst call hosted models, so they need an API key in your environment:
+
+<CodeGroup>
+  ```bash Anthropic
+  export ANTHROPIC_API_KEY=sk-ant-...
+  ```
+
+  ```bash OpenAI
+  export OPENAI_API_KEY=sk-...
+  ```
+</CodeGroup>
+
+The web analyst also needs a running Redis instance for its queue. See [Queues](/distributed/queues) for setup details.

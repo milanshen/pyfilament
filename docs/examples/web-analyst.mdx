@@ -1,0 +1,152 @@
+---
+title: "Web Analyst Example"
+sidebarTitle: "Web analyst"
+description: "A distributed Pyfilament pipeline: fetch and summarize web pages across a Redis queue and one or more workers, with retries, rate limiting, caching, and a global concurrency cap."
+---
+
+This example is a distributed pipeline. A client submits URLs to a Redis queue, and one or more workers fetch each page, classify it, and run a specialist agent to produce a structured brief. It brings together queues, workers, subtasks, retries, rate limiting, caching, and a global concurrency cap in one program.
+
+The example lives in the `examples/web_analyst/` package:
+
+| File | Role |
+|---|---|
+| `app.py` | Task definitions and the pipeline logic |
+| `worker.py` | Worker entrypoint — serves `analyze_page` off the queue |
+| `__main__.py` | Client entrypoint — submits jobs to the queue |
+
+## Prerequisites
+
+- A running Redis instance for the queue. See [Queues](/distributed/queues).
+- An OpenAI API key, and the `openai-agents` SDK.
+
+```bash
+export OPENAI_API_KEY=sk-...
+# Optional — defaults to gpt-4.1
+export OPENAI_MODEL=gpt-4.1
+```
+
+## How it works
+
+Two processes share a Redis queue: a worker that serves jobs and a client that submits them.
+
+`analyze_page` is the distributed unit of work. The client enqueues one run per URL with `.request()`, and a worker pulls each off the stream and runs it. Inside that worker, `fetch_page`, `summarize`, and `run_agent` execute as child runs, so the full delegation tree shows up under each `analyze_page`.
+
+### The pipeline task
+
+`analyze_page` ties the steps together. `max_concurrent=4` is a *global* cap shared across every worker, not a per-process one.
+
+```python examples/web_analyst/app.py
+@task(max_concurrent=4)
+async def analyze_page(url: str) -> PageBrief:
+    """The distributed unit of work: fetch, then summarize. Submitted to the queue
+    with .request() and run by a worker via .serve(); fetch/summarize/run_agent run
+    in that worker as child runs."""
+    logger = get_logger()
+    logger.info('analyze %s', url)
+    html = await fetch_page(url)
+    brief = await summarize(url, html)
+    logger.info('analyze %s complete', url)
+    log_brief(url, brief)
+    return brief
+```
+
+### Fetching with retries and rate limiting
+
+`fetch_page` rides out a flaky network with `tries`, stays polite with `rate_limit`, and aborts a hang with `timeout`.
+
+```python examples/web_analyst/app.py
+@task(tries=3, delay=1, timeout=30, rate_limit=2)
+async def fetch_page(url: str) -> str:
+    logger = get_logger()
+    logger.info('GET %s', url)
+    response = requests.get(url, timeout=10)
+    response.raise_for_status()
+    return response.text
+```
+
+### Summarizing with caching and agent delegation
+
+`summarize` classifies the page, then runs the matching specialist agent. `cache` keys on `(url, html)`, so an identical page is briefed once. Each `run_agent` is its own run, so the delegation tree is visible.
+
+```python examples/web_analyst/app.py
+@task(tries=3, delay=2, cache=True, cache_ttl=3600)
+async def summarize(url: str, html: str) -> PageBrief:
+    logger = get_logger()
+    prompt = build_prompt(url, html)
+    triage = await run_agent(triage_agent, prompt)
+    category = (triage.final_output.category or 'other').lower()
+    specialist = SPECIALISTS[category]
+    # The specialist gets the full HTML via context so extract_links works on the
+    # whole page, not the truncated prompt.
+    result = await run_agent(specialist, prompt, PageContext(html=html))
+    return result.final_output
+```
+
+### Tasks as tools
+
+The `extract_links` tool follows a pattern worth calling out: the `@task` lives on the real work with a clean, serializable signature, and a thin `@function_tool` wrapper adapts it to the agent SDK. The decorators cannot stack, so keeping them as two functions gives you a proper task run for the tool *and* a schema the agent can call.
+
+```python examples/web_analyst/app.py
+@task
+async def extract_links(html: str) -> list[str]:
+    logger = get_logger()
+    hrefs = re.findall(r"""href=["'](https?://[^"']+)["']""", html)
+    links = list(dict.fromkeys(hrefs))[:20]
+    logger.info('extract_links found %d link(s)', len(links))
+    return links
+
+
+@function_tool(
+    name_override='extract_links',
+    description_override='Return up to 20 distinct absolute (http/https) links found on the page. '
+    'Takes no arguments — it reads the full HTML from the run context.',
+)
+async def extract_links_tool(ctx: RunContextWrapper[PageContext]) -> list[str]:
+    return await extract_links(ctx.context.html)
+```
+
+## Run it
+
+Run the two processes from the repository root in separate terminals.
+
+<Steps>
+  <Step title="Start a worker">
+    The worker registers every task type up front, then serves `analyze_page` off the queue. Run it in as many terminals as you like — workers share the queue and the global `max_concurrent` cap.
+
+    ```bash
+    python -m examples.web_analyst.worker
+    ```
+  </Step>
+
+  <Step title="Submit jobs">
+    The client enqueues one `analyze_page` run per URL and awaits the results, which come back in URL order. With no arguments it submits a default set of URLs.
+
+    ```bash
+    python -m examples.web_analyst
+    ```
+
+    Pass your own URLs as arguments:
+
+    ```bash
+    python -m examples.web_analyst https://example.com https://news.ycombinator.com
+    ```
+  </Step>
+
+  <Step title="Run it again">
+    Submit the same URLs a second time. Because `fetch_page` and `summarize` are
+    cached, the fetches and briefs come straight from the cache instead of hitting
+    the network or the model.
+  </Step>
+</Steps>
+
+## What to notice
+
+- **`.request()` and `.serve()` split submission from execution.** The client calls `analyze_page.request(url)` to enqueue, and the worker calls `analyze_page.serve()` to process. See [Workers](/concepts/workers) and [Queues](/distributed/queues).
+- **Register task types before submitting or serving.** `register_task_types()` creates each task type's database row once, serially, under a Redis lock, so concurrent first-time runs never race to insert the same row.
+- **`max_concurrent` is global.** The cap on `analyze_page` is shared across every worker, not per process — adding workers increases throughput up to that ceiling. See [Concurrency](/configuration/concurrency).
+- **Cross-queue results are plain dicts.** Results that cross the Redis queue come back as JSON, so the client rebuilds the `PageBrief` model with `model_validate`.
+
+<Note>
+  Start more workers in more terminals to process URLs in parallel. They all pull
+  from the same stream and respect the same global concurrency cap.
+</Note>

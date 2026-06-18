@@ -8,9 +8,9 @@
     "dark": "#040404"
   },
   "logo": {
-    "light": "/docs/images/pyfilament-logo.png",
+    "light": "/docs/images/pyfilament-logo-2.png",
     "href": "https://github.com/pyfilament/pyfilament",
-    "dark": "/docs/images/pyfilament-logo.png"
+    "dark": "/docs/images/pyfilament-logo-2.png"
   },
   "favicon": {
     "light": "/docs/images/pyfilament-mark-square.png",

@@ -164,10 +164,12 @@ async def fetch_page(url: str) -> str:
     return response.text
 
 
-@task(tries=3, delay=2)
+@task(tries=3, delay=2, cache=True, cache_ttl=3600)
 async def summarize(url: str, html: str) -> PageBrief:
     """Classify the page, then run the matching specialist (which may call
-    extract_links). Each run_agent is its own run, so the delegation tree shows up."""
+    extract_links). `cache` keys on (url, html), so an identical page is briefed
+    (and paid for) once. Each run_agent is its own run, so the delegation tree
+    shows up."""
     logger = get_logger()
     prompt = build_prompt(url, html)
     triage = await run_agent(triage_agent, prompt)

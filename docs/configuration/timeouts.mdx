@@ -1,7 +1,5 @@
 ---
-title: "Configure Per-Attempt Timeouts in Pyfilament Tasks"
-sidebarTitle: "Timeouts"
-description: "Prevent Pyfilament tasks from running indefinitely by setting a timeout in seconds. Timed-out tasks transition to the timeout state and can be retried."
+title: "timeouts"
 ---
 
 Pyfilament lets you cap how long a task can run by setting a `timeout`. If a task exceeds its timeout, it transitions to the `timeout` state and raises a `TimeoutError`.
@@ -62,7 +60,7 @@ async def long_running_job() -> None:
 
 ## Parameters reference
 
-<ParamField body="timeout" type="float | None" default="None">
+<ParamField body="timeout" default="None" type="float | None">
   Maximum execution time in seconds per attempt. When the limit is exceeded, the task transitions to the `timeout` state and raises `TimeoutError`. Set to `None` to allow unlimited execution time. Note that setting a `timeout` also determines the maximum lease duration when `max_concurrent` is used.
 </ParamField>
 

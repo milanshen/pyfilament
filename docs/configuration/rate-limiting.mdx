@@ -1,7 +1,5 @@
 ---
-title: "Throttle Pyfilament Tasks with a Per-Second Rate Limit"
-sidebarTitle: "Rate Limiting"
-description: "Use Pyfilament's token-bucket rate limiter to cap how many times a task executes per second, preventing overload of downstream services."
+title: "rate-limiting"
 ---
 
 Pyfilament uses a Redis-backed token bucket to limit how frequently a task can execute. Set `rate_limit` to cap the number of executions per second across all workers.
@@ -36,7 +34,7 @@ Rate limits are scoped to the task type, identified by the function's address. T
 
 ## Parameters reference
 
-<ParamField body="rate_limit" type="float | None" default="None">
+<ParamField body="rate_limit" default="None" type="float | None">
   Maximum executions per second across all workers. Uses a token-bucket algorithm with a burst capacity of `rate_limit × 4` tokens. Set to `None` to allow unlimited execution rate.
 </ParamField>
 

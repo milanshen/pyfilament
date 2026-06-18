@@ -1,12 +1,10 @@
 ---
-title: "Structured Logging in Pyfilament Tasks: get_logger() Guide"
-sidebarTitle: "Logging"
-description: "Pyfilament captures structured JSON logs per task run. Use get_logger() inside any task to emit logs viewable in the dashboard and via GraphQL."
+title: "logging"
 ---
 
 Pyfilament captures structured JSON logs for each task run, making them viewable in the dashboard and queryable through the GraphQL API. Call `get_logger()` inside any task to emit logs that are automatically tagged with the task's UUID and kept separate from concurrent runs of the same task type.
 
-## Using get_logger()
+## Using get\_logger()
 
 Call `get_logger()` at any point inside a `@task` function. It returns a standard Python `Logger` pre-configured to write structured JSON entries scoped to the current task run:
 
@@ -29,7 +27,7 @@ Log entries from concurrent runs of the same task type are stored separately and
 Each log entry is a JSON object with four fields:
 
 | Field | Type | Description |
-|---|---|---|
+| --- | --- | --- |
 | `timestamp` | `float` | Unix timestamp (seconds since epoch) |
 | `level` | `str` | Log level name: `DEBUG`, `INFO`, `WARNING`, `ERROR`, or `CRITICAL` |
 | `name` | `str` | Logger name identifying the task type and run |
@@ -83,8 +81,10 @@ logger.critical("A severe error that may abort the task")
 
 Set the log level on the logger object or via standard Python logging configuration to control which levels are captured.
 
-## get_logger() outside a task
+## get\_logger() outside a task
 
 If you call `get_logger()` from outside a task execution context — for example, in a utility function that is not itself decorated with `@task` — it returns a standard Python logger named after the calling module and function. Entries from this logger are not associated with any task run and do not appear in the dashboard.
 
-<Note>Logs are stored with a retention period of 14 days and are retrieved by both the dashboard and the GraphQL API's `logs` field on `TaskRun`. No separate log aggregation backend is required.</Note>
+<Note>
+  Logs are stored with a retention period of 14 days and are retrieved by both the dashboard and the GraphQL API's `logs` field on `TaskRun`. No separate log aggregation backend is required.
+</Note>

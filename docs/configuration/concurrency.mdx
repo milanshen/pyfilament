@@ -1,7 +1,5 @@
 ---
-title: "Limit Simultaneous Pyfilament Task Executions Across Workers"
-sidebarTitle: "Concurrency"
-description: "Use Pyfilament's Redis semaphore to cap how many instances of a task run simultaneously, protecting shared resources from overload."
+title: "concurrency"
 ---
 
 Pyfilament uses a Redis-backed semaphore to limit how many instances of a task can run at the same time. Set `max_concurrent` to protect shared resources or downstream services from being overwhelmed.
@@ -41,7 +39,7 @@ In this example, any lease that is not actively renewed by heartbeats will expir
 
 ## Parameters reference
 
-<ParamField body="max_concurrent" type="int | None" default="None">
+<ParamField body="max_concurrent" default="None" type="int | None">
   Maximum number of simultaneous executions across all workers. Tasks that exceed this limit wait in a Redis-backed queue until a lease becomes available. Set to `None` to allow unlimited concurrency.
 </ParamField>
 

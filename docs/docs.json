@@ -8,10 +8,14 @@
     "dark": "#040404"
   },
   "logo": {
-    "light": "https://media.brand.dev/561f8f59-3df7-4cae-b97a-bf1b8bb895e8.svg",
-    "dark": "https://media.brand.dev/561f8f59-3df7-4cae-b97a-bf1b8bb895e8.svg"
+    "light": "/docs/images/pyfilament-mark-square.png",
+    "dark": "/docs/images/pyfilament-mark-square.png",
+    "href": "https://github.com/pyfilament/pyfilament"
   },
-  "favicon": "https://icons.duckduckgo.com/ip3/pyfilament.io.ico",
+  "favicon": {
+    "light": "/docs/images/pyfilament-mark-square.png",
+    "dark": "https://icons.duckduckgo.com/ip3/pyfilament.io.ico"
+  },
   "navbar": {
     "primary": {
       "type": "github",

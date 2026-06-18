@@ -1,7 +1,5 @@
 ---
-title: "Pyfilament Observability Dashboard: Monitor Your Tasks"
-sidebarTitle: "Dashboard"
-description: "Explore Pyfilament's built-in web dashboard to monitor task types, inspect individual runs, view execution timelines, read logs, and cancel tasks."
+title: "dashboard"
 ---
 
 Pyfilament includes a built-in web dashboard for monitoring your tasks. Browse all task types, inspect individual runs, view execution timelines, read structured logs, and cancel running tasks — all from the browser. The dashboard is served alongside the Pyfilament API server and is available at your server's address.
@@ -11,13 +9,9 @@ Pyfilament includes a built-in web dashboard for monitoring your tasks. Browse a
 The dashboard is a React single-page application with five main pages:
 
 1. **Task Types** (`/`) — lists all registered task types sorted by most-recent activity. Each row shows the task name, its latest run's state badge, and a human-readable timestamp.
-
 2. **Task Type** (`/task-type/:taskTypeId`) — shows the most recent runs for a single task type (up to 99 runs), sorted by most-recently-updated first. Filter runs by state to find failures or long-running executions quickly.
-
 3. **Task Run** (`/task-run/:taskRunId`) — the primary debugging view. Shows the full execution timeline, subtask tree, parameter and result JSON, and structured logs for a single run. Accepts either a numeric database ID or a task UUID.
-
 4. **Task Type Stack** (`/task-type-stack/:taskTypeIds`) — explore runs across a call stack of task types. Pass a comma-separated list of task type IDs to visualise how runs flow through a chain of tasks.
-
 5. **Compare Runs** (`/task-runs-compare/:taskRunIds`) — diff the parameters and results between two runs side by side. Pass two comma-separated run IDs to spot regressions or unexpected input changes.
 
 ## Task run timeline
@@ -38,4 +32,6 @@ The detail panel shows everything recorded for a selected task run:
 
 The logs panel beneath the detail panel shows all log entries for the selected run and its subtasks, sorted chronologically so you see a unified event stream across the entire execution tree.
 
-<Tip>You can navigate to a task run directly by UUID: `/task-run/{uuid}`. The dashboard resolves the UUID to its numeric ID automatically.</Tip>
+<Tip>
+  You can navigate to a task run directly by UUID: `/task-run/{uuid}`. The dashboard resolves the UUID to its numeric ID automatically.
+</Tip>

@@ -1,7 +1,5 @@
 ---
-title: "Running Pyfilament Workers for Distributed Execution"
-sidebarTitle: "Workers"
-description: "Start Pyfilament workers to process tasks from the Redis queue. Scale horizontally by running multiple worker processes, with graceful shutdown support."
+title: "workers"
 ---
 
 A Pyfilament worker is a long-running process that dequeues and executes tasks from Redis. Run one or many workers to process tasks in parallel — each worker instance is independent and self-registers automatically.
@@ -96,4 +94,6 @@ asyncio.run(main())
 
 This is equivalent to running two separate worker processes but in a single Python process, which can simplify deployment when your task types are lightweight.
 
-<Note>Ensure your worker process imports the same `@task` functions that will receive queue messages. Workers look up tasks by function address, so the import path must match the one used when the task type was registered.</Note>
+<Note>
+  Ensure your worker process imports the same `@task` functions that will receive queue messages. Workers look up tasks by function address, so the import path must match the one used when the task type was registered.
+</Note>

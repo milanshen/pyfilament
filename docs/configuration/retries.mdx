@@ -1,7 +1,5 @@
 ---
-title: "Configure Retries and Backoff for Pyfilament Tasks"
-sidebarTitle: "Retries"
-description: "Automatically retry failed Pyfilament tasks with configurable attempt counts, delay, exponential backoff, and selective exception filtering."
+title: "retries"
 ---
 
 Pyfilament retries failed tasks automatically. Configure the number of attempts, the delay between retries, exponential backoff, and which exceptions trigger a retry — all on the `@task` decorator.
@@ -59,23 +57,23 @@ result = await fetch_data(url="...", tries=1)  # disable retries for this call
 
 ## Parameters reference
 
-<ParamField body="tries" type="int" default="1">
+<ParamField body="tries" default="1" type="int">
   Total number of attempts, including the first. The default of `1` means one attempt with no retries. Set to a higher value to enable retries.
 </ParamField>
 
-<ParamField body="delay" type="float" default="0">
+<ParamField body="delay" default="0" type="float">
   Base delay in seconds before the first retry. When `0`, retries execute immediately.
 </ParamField>
 
-<ParamField body="backoff_base" type="float" default="2">
+<ParamField body="backoff_base" default="2" type="float">
   Multiplier applied to `delay` on each successive retry. The wait before retry `i` (zero-indexed) is `delay × backoff_base^i × jitter`, where jitter is a random value between 1.0 and 1.5.
 </ParamField>
 
-<ParamField body="retry_exceptions" type="list" default="[Exception]">
+<ParamField body="retry_exceptions" default="[Exception]" type="list">
   Exception types that trigger a retry. Defaults to all exceptions. Pass a narrower list to retry only specific failure modes.
 </ParamField>
 
-<ParamField body="no_retry_exceptions" type="list" default="[]">
+<ParamField body="no_retry_exceptions" default="[]" type="list">
   Exception types that are never retried, even if they appear in `retry_exceptions`. Useful for skipping retries on unrecoverable errors such as `ValueError`.
 </ParamField>
 

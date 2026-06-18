@@ -1,7 +1,5 @@
 ---
-title: "Task Queues and Durability in Pyfilament"
-sidebarTitle: "Queues"
-description: "Pyfilament uses Redis Streams as a durable task queue. Each task type gets its own queue with automatic stale-message cleanup and persistence across worker restarts."
+title: "queues"
 ---
 
 Pyfilament uses Redis Streams as its distributed task queue. Each `@task` type gets a dedicated queue, and messages persist in Redis regardless of whether any workers are running at the time of submission.
@@ -40,4 +38,6 @@ result = await task_run
 
 Pyfilament automatically cleans up stale pending messages every time a new task is enqueued. Any message that has been pending for more than **3 days** is acknowledged and removed. After stale messages are cleared, the queue is trimmed to match the oldest remaining pending message, keeping Redis memory usage bounded.
 
-<Note>The queue requires Redis. Set the `REDIS_URL` environment variable before starting your workers or API server.</Note>
+<Note>
+  The queue requires Redis. Set the `REDIS_URL` environment variable before starting your workers or API server.
+</Note>

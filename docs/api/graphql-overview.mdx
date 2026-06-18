@@ -1,7 +1,5 @@
 ---
-title: "Pyfilament GraphQL API: Types and Schema Reference"
-sidebarTitle: "GraphQL Overview"
-description: "Pyfilament's GraphQL API at POST /graphql covers task types, task runs, state transitions, and logs. Explore all types and the schema in this reference."
+title: "graphql-overview"
 ---
 
 Pyfilament's server exposes a GraphQL API at `/graphql`. Use it to query task types, task runs, state transitions, and logs, and to trigger mutations that cancel or start tasks. The API powers the Pyfilament dashboard and is available for your own integrations and monitoring tooling.
@@ -10,7 +8,7 @@ Pyfilament's server exposes a GraphQL API at `/graphql`. Use it to query task ty
 
 ## Endpoint
 
-```
+```text
 POST /graphql
 ```
 
@@ -25,7 +23,7 @@ Send GraphQL queries and mutations as JSON to this endpoint. You can also open i
 Represents a registered `@task`-decorated function.
 
 | Field | Type | Description |
-|---|---|---|
+| --- | --- | --- |
 | `id` | `ID` | Database ID of the task type. |
 | `funcAddress` | `String` | Module path and function name, e.g. `myapp.tasks:process_order`. |
 | `name` | `String` | Display name (defaults to `funcAddress`). |
@@ -39,7 +37,7 @@ Represents a registered `@task`-decorated function.
 Represents a single execution of a task type.
 
 | Field | Type | Description |
-|---|---|---|
+| --- | --- | --- |
 | `id` | `Int` | Database ID. |
 | `taskUuid` | `String` | Unique UUID for this run. |
 | `name` | `String` | Human-readable name, e.g. `process_order(abc123)`. |
@@ -62,7 +60,7 @@ Represents a single execution of a task type.
 Records a single state change for a task run.
 
 | Field | Type | Description |
-|---|---|---|
+| --- | --- | --- |
 | `id` | `Int` | Database ID. |
 | `taskUuid` | `String` | UUID of the associated task run. |
 | `fromState` | `String` | Previous state. |
@@ -75,7 +73,7 @@ Records a single state change for a task run.
 A single structured log entry emitted by `get_logger()` during task execution.
 
 | Field | Type | Description |
-|---|---|---|
+| --- | --- | --- |
 | `timestamp` | `Float` | Unix timestamp of the log entry. |
 | `level` | `String` | Log level, e.g. `INFO`, `WARNING`, `ERROR`. |
 | `name` | `String` | Logger name (`func_address:task_uuid`). |

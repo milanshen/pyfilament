@@ -1,7 +1,5 @@
 ---
-title: "Pyfilament TaskState Enum: All States and Terminal Set"
-sidebarTitle: "Task States"
-description: "Reference for the Pyfilament TaskState enum with all eight states: created, running, retrying, success, failure, timeout, cancelled, and cached."
+title: "task-states"
 ---
 
 The `TaskState` enum defines all possible states for a Pyfilament task run. Import and use it to filter queries, assert on task run state in tests, or branch logic based on a run's outcome.
@@ -17,7 +15,7 @@ from filament.constants import TaskState
 ## States
 
 | Value | String | Description |
-|---|---|---|
+| --- | --- | --- |
 | `TaskState.CREATED` | `"created"` | Task run has been created but has not yet started executing. |
 | `TaskState.RUNNING` | `"running"` | Task is actively executing. |
 | `TaskState.RETRYING` | `"retrying"` | A previous attempt failed; the task is waiting before the next retry. |

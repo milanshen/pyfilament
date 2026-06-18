@@ -1,7 +1,5 @@
 ---
-title: "Cache Pyfilament Task Results with TTL and Custom Keys"
-sidebarTitle: "Caching"
-description: "Cache Pyfilament task results in Redis to avoid redundant work. Configure expiry, custom key logic, and per-call cache refresh on the task decorator."
+title: "caching"
 ---
 
 Pyfilament can cache task results in Redis, returning the cached value on subsequent calls with identical inputs instead of re-executing the function. Enable caching to avoid redundant work on expensive or slow operations.
@@ -56,19 +54,19 @@ async def fetch_report(report_id: str, verbose: bool = False) -> dict:
 
 ## Parameters reference
 
-<ParamField body="cache" type="bool" default="false">
+<ParamField body="cache" default="false" type="bool">
   Enable result caching. When `True`, Pyfilament stores the return value in Redis after the first successful execution and returns it on subsequent calls with the same cache key.
 </ParamField>
 
-<ParamField body="cache_ttl" type="int | None" default="None">
+<ParamField body="cache_ttl" default="None" type="int | None">
   Cache TTL in seconds. When `None`, cached results never expire (Redis key is set without an expiry). Set a value to automatically invalidate stale results.
 </ParamField>
 
-<ParamField body="cache_key" type="callable" default="hash of function + parameters">
+<ParamField body="cache_key" default="hash of function + parameters" type="callable">
   A callable with the signature `(func, params: dict) -> str` that produces the cache key string. Override the default to exclude irrelevant parameters or build a custom scoping scheme.
 </ParamField>
 
-<ParamField body="refresh_cache" type="bool" default="false">
+<ParamField body="refresh_cache" default="false" type="bool">
   Bypass the cache for a single call, re-execute the function, and write the new result back to the cache. Pass as a keyword argument at call time.
 </ParamField>
 

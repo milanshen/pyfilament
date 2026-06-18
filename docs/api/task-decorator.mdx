@@ -1,7 +1,5 @@
 ---
-title: "Pyfilament @task Decorator: Usage and API Reference"
-sidebarTitle: "@task Decorator"
-description: "Complete reference for the Pyfilament @task decorator: bare and configured forms, call patterns, serve and request methods, and per-call config overrides."
+title: "task-decorator"
 ---
 
 The `@task` decorator is Pyfilament's primary API. It wraps any async Python function and returns a managed task type with retries, timeouts, caching, and distributed execution built in.
@@ -72,7 +70,7 @@ async for num in stream_numbers(5):
 Decorating a function with `@task` produces a task type object with the following methods:
 
 | Method | Returns | Description |
-|---|---|---|
+| --- | --- | --- |
 | `__call__(*args, **kwargs)` | a task run | Creates a task run. Await it to execute locally, or iterate it for streaming tasks. |
 | `async serve(shutdown_event=None)` | `None` | Runs the task type as a worker, processing remote requests until `shutdown_event` is set. |
 | `async request(*args, **kwargs)` | a remote task run | Enqueues the task for a remote worker and returns a handle you can await for the result. |

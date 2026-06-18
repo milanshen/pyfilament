@@ -1,7 +1,5 @@
 ---
-title: "Pyfilament Hook Functions: Task Inspection and Control"
-sidebarTitle: "Hooks"
-description: "Reference for Pyfilament's get_current_task_run(), cancel_task_run_by_uuid(), and get_logger() hooks for inspecting, cancelling, and logging task runs."
+title: "hooks"
 ---
 
 Pyfilament provides three hook functions for interacting with task runs programmatically: `get_current_task_run()` to inspect the currently executing task, `cancel_task_run_by_uuid()` to cancel any task by its UUID, and `get_logger()` to obtain a structured logger scoped to the current task run.
@@ -14,7 +12,7 @@ from filament.hooks import get_current_task_run, cancel_task_run_by_uuid
 
 ---
 
-## get_current_task_run()
+## get\_current\_task\_run()
 
 **Signature:** `get_current_task_run() -> FilamentTaskRun`
 
@@ -38,7 +36,7 @@ async def my_task() -> str:
 
 ---
 
-## cancel_task_run_by_uuid()
+## cancel\_task\_run\_by\_uuid()
 
 **Signature:** `async cancel_task_run_by_uuid(task_uuid: str) -> None`
 
@@ -63,7 +61,7 @@ await cancel_task_run_by_uuid("abc123-uuid")
 
 ---
 
-## get_logger()
+## get\_logger()
 
 **Import:** `from filament import get_logger`
 

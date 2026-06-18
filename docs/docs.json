@@ -8,10 +8,14 @@
     "dark": "#040404"
   },
   "logo": {
-    "light": "https://media.brand.dev/561f8f59-3df7-4cae-b97a-bf1b8bb895e8.svg",
-    "dark": "https://media.brand.dev/561f8f59-3df7-4cae-b97a-bf1b8bb895e8.svg"
+    "light": "/docs/images/pyfilament-logo-2.png",
+    "href": "https://github.com/pyfilament/pyfilament",
+    "dark": "/docs/images/pyfilament-logo-2.png"
   },
-  "favicon": "https://icons.duckduckgo.com/ip3/pyfilament.io.ico",
+  "favicon": {
+    "light": "/docs/images/pyfilament-mark-square.png",
+    "dark": "https://icons.duckduckgo.com/ip3/pyfilament.io.ico"
+  },
   "navbar": {
     "primary": {
       "type": "github",
@@ -25,11 +29,7 @@
         "groups": [
           {
             "group": "Get Started",
-            "pages": [
-              "introduction",
-              "quickstart",
-              "installation"
-            ]
+            "pages": ["introduction", "quickstart", "installation"]
           },
           {
             "group": "Core Concepts",
@@ -90,9 +90,7 @@
           },
           {
             "group": "REST API",
-            "pages": [
-              "api/rest-task-runs"
-            ]
+            "pages": ["api/rest-task-runs"]
           }
         ]
       }

@@ -13,7 +13,7 @@ from filament.db.session import async_session_scope
 from filament.redis.semaphore import RedisSemaphore
 from filament.state.task_type_state import upsert_task_type_state
 
-MODEL = os.getenv('OPENAI_MODEL', 'gpt-4.1')
+MODEL = os.getenv('OPENAI_MODEL', 'gpt-5.4')
 logging.getLogger().setLevel(logging.DEBUG)
 
 
@@ -113,10 +113,8 @@ def build_prompt(url: str, html: str) -> str:
     return f'URL: {url}\n\nHTML (truncated):\n{html[:8000]}'
 
 
-# Params left unannotated: filament builds an input schema from the signature, and
-# the third-party Agent type can't render to one. Bare params skip the schema.
 @task
-async def run_agent(agent, prompt, context=None) -> RunResult:
+async def run_agent(agent: Agent, prompt: str, context: PageContext | None = None) -> RunResult:
     logger = get_logger()
     logger.info('Running agent: %s', agent.name)
     result = await Runner.run(agent, prompt, context=context)
@@ -180,6 +178,7 @@ async def register_task_types() -> None:
 @task
 async def run_web_analyst_pipeline(urls: list[str]) -> None:
     await register_task_types()
+    print('Pipeline started...' + '\n' + 'Check logs in the filament UI for progress.')
     logger = get_logger()
     logger.info('Submitting %d url(s) to the queue …', len(urls))
     runs = await asyncio.gather(*(analyze_page.request(url) for url in urls))

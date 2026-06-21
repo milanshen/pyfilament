@@ -1,6 +1,8 @@
-"""A minimal filament example: a weather agent powered by the Anthropic API.
+"""A minimal filament example: a streaming weather agent powered by the Anthropic API.
 
-No queue and no worker — every @task runs in-process with a plain `await`, yet each still shows up as its own filament run, so you get the full call tree for free.
+No queue and no worker — the @task runs in-process. It runs a tool-use loop (calling
+the get_weather tool), then streams the final answer token by token through filament's
+async-generator support. Tool calls execute but aren't printed.
 
 Run it from the repo root (requires `pip install anthropic`):
 
@@ -50,32 +52,37 @@ async def get_weather(city: str) -> str:
     return FAKE_WEATHER.get(city.lower(), f'No data for {city}; assume 20°C and mild.')
 
 
-# `cache` keys on the arguments, so re-asking an identical question is paid for once.
-@task(tries=3, delay=1, cache=True, cache_ttl=3600)
-async def call_model(messages: list[dict]) -> dict:
-    response = await client.messages.create(model=MODEL, max_tokens=1024, tools=[WEATHER_TOOL], messages=messages)
-    usage = response.usage
-    get_logger().info(
-        'model call: stop=%s, input=%s, output=%s', response.stop_reason, usage.input_tokens, usage.output_tokens
-    )
-    # Plain dict so the result round-trips cleanly through filament.
-    return {'stop_reason': response.stop_reason, 'content': [block.model_dump() for block in response.content]}
-
-
 ### AGENT
 
 
+# An async-generator @task: yielded values stream to the caller via `async for`.
+# Yields answer tokens (str), then the final message (dict) for the tool loop.
 @task
-async def answer_weather_question(question: str) -> str:
-    """Tool-use loop: ask the model, run any get_weather call it requests, feed the
-    result back, and repeat until it produces a final answer."""
+async def generate_response(messages: list[dict]):
+    async with client.messages.stream(model=MODEL, max_tokens=1024, tools=[WEATHER_TOOL], messages=messages) as stream:
+        async for text in stream.text_stream:
+            yield text
+        final = await stream.get_final_message()
+        get_logger().info('LLM call: stop=%s', final.stop_reason)
+        yield {'stop_reason': final.stop_reason, 'content': [b.model_dump(exclude_none=True) for b in final.content]}
+
+
+# Consumes the generate_response stream with `async for` and re-yields tokens, so it's
+# itself a streaming @task. Each get_weather and generate_response call is its own run.
+@task
+async def answer_weather_question(question: str):
     get_logger().info('Question: %s', question)
     messages: list[dict] = [{'role': 'user', 'content': question}]
     for _ in range(MAX_TURNS):
-        reply = await call_model(messages)
+        reply = None
+        async for event in generate_response(messages):
+            if isinstance(event, str):
+                yield event
+            else:
+                reply = event
         messages.append({'role': 'assistant', 'content': reply['content']})
         if reply['stop_reason'] != 'tool_use':
-            return ' '.join(b['text'] for b in reply['content'] if b['type'] == 'text').strip()
+            return
         tool_results = []
         for block in reply['content']:
             if block['type'] != 'tool_use':
@@ -97,8 +104,10 @@ async def main():
         'Should I bring sunglasses in Cairo or Tokyo right now?',
     ]
     for question in questions:
-        answer = await answer_weather_question(question)
-        print(f'Q: {question}\nA: {answer}\n')
+        print(f'Q: {question}\nA: ', end='', flush=True)
+        async for chunk in answer_weather_question(question):
+            print(chunk, end='', flush=True)
+        print('\n')
 
 
 if __name__ == '__main__':

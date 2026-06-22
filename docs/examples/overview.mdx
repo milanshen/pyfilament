@@ -23,10 +23,24 @@ Each example is a self-contained script you can run from the repository root. Th
 Every example runs as a module from the repository root:
 
 ```bash
-python -m examples.hello_world
+python -m examples.test_hello_world
 ```
 
-The weather agent and web analyst call hosted models, so they need an API key in your environment:
+<Note>
+  The example files are named with a `test_` prefix (`test_hello_world.py`,
+  `test_get_weather.py`, `test_app.py`) so they double as runnable tests in this
+  repository's demo environment. That naming is incidental — run each example
+  directly with `python -m` as shown on its page.
+</Note>
+
+The weather agent and web analyst depend on the `anthropic`, `openai-agents`, and
+`requests` packages, grouped under the `examples` dependency group. Install them with:
+
+```bash
+uv sync --group examples
+```
+
+They also call hosted models, so they need an API key in your environment:
 
 <CodeGroup>
   ```bash Anthropic

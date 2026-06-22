@@ -1,5 +1,5 @@
 ---
-title: "logging"
+title: "Logging"
 ---
 
 Pyfilament captures structured JSON logs for each task run, making them viewable in the dashboard and queryable through the GraphQL API. Call `get_logger()` inside any task to emit logs that are automatically tagged with the task's UUID and kept separate from concurrent runs of the same task type.

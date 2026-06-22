@@ -1,8 +1,40 @@
 ---
-title: "dashboard"
+title: "Dashboard"
+description: "Start the Pyfilament dashboard — a FastAPI backend and React frontend — to browse task types, inspect runs, view timelines, read logs, and cancel running tasks from the browser."
 ---
 
-Pyfilament includes a built-in web dashboard for monitoring your tasks. Browse all task types, inspect individual runs, view execution timelines, read structured logs, and cancel running tasks — all from the browser. The dashboard is served alongside the Pyfilament API server and is available at your server's address.
+Pyfilament includes a built-in web dashboard for monitoring your tasks. Browse all task types, inspect individual runs, view execution timelines, read structured logs, and cancel running tasks — all from the browser. The dashboard has two parts: a **FastAPI** backend that serves the GraphQL and REST APIs, and a **React** frontend that talks to it.
+
+## Start the dashboard
+
+The dashboard reads task data from the same database your tasks write to, so point both processes at that database and at the Redis instance your tasks use. See [Installation](/installation) for the `FILAMENT_DB_URI` and `FILAMENT_REDIS_*` variables (the defaults — local SQLite and `localhost:6379` — need no configuration) and for applying the [database migrations](/installation#create-the-schema) that create the schema.
+
+### Run the backend
+
+Start the FastAPI app with Uvicorn from the repository root. It serves the GraphQL and REST APIs on port `5006`:
+
+```bash
+uv run uvicorn filament.api.main:app --host 0.0.0.0 --port 5006 --reload --reload-dir src/
+```
+
+`--reload` restarts the server when you edit files under `src/`; drop it for a non-development run.
+
+### Run the frontend
+
+The frontend is a Vite app in the `ui/` directory. Install its dependencies once, then start the dev server:
+
+```bash
+cd ui
+npm install
+npm run dev
+```
+
+It serves the dashboard on [http://localhost:3001](http://localhost:3001) and proxies `/graphql` and `/api` requests to the backend on port `5006`. Open that URL in your browser to use the dashboard.
+
+<Tip>
+  For a production-style build, run `npm run build` then `npm run preview` instead of
+  `npm run dev`. Both serve on port `3001`.
+</Tip>
 
 ## Dashboard pages
 

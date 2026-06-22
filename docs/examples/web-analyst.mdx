@@ -10,19 +10,25 @@ The example lives in the `examples/web_analyst/` package:
 
 | File | Role |
 |---|---|
-| `app.py` | Task definitions and the pipeline logic |
+| `test_app.py` | Task definitions and the pipeline logic |
 | `worker.py` | Worker entrypoint — serves `analyze_page` off the queue |
 | `__main__.py` | Client entrypoint — submits jobs to the queue |
+
+<Note>
+  The core module is named `test_app.py` so it doubles as a runnable test in this
+  repository's demo environment. Nothing about the example depends on pytest — run the
+  two entrypoints with `python -m` as shown below.
+</Note>
 
 ## Prerequisites
 
 - A running Redis instance for the queue. See [Queues](/distributed/queues).
-- An OpenAI API key, and the `openai-agents` SDK.
+- An OpenAI API key, and the `openai-agents` SDK (part of the `examples` dependency group).
 
 ```bash
 export OPENAI_API_KEY=sk-...
-# Optional — defaults to gpt-4.1
-export OPENAI_MODEL=gpt-4.1
+# Optional — defaults to gpt-5.4
+export OPENAI_MODEL=gpt-5.4
 ```
 
 ## How it works
@@ -35,17 +41,12 @@ Two processes share a Redis queue: a worker that serves jobs and a client that s
 
 `analyze_page` ties the steps together. `max_concurrent=4` is a *global* cap shared across every worker, not a per-process one.
 
-```python examples/web_analyst/app.py
+```python examples/web_analyst/test_app.py
 @task(max_concurrent=4)
 async def analyze_page(url: str) -> PageBrief:
-    """The distributed unit of work: fetch, then summarize. Submitted to the queue
-    with .request() and run by a worker via .serve(); fetch/summarize/run_agent run
-    in that worker as child runs."""
-    logger = get_logger()
-    logger.info('analyze %s', url)
+    get_logger().info('analyze %s', url)
     html = await fetch_page(url)
     brief = await summarize(url, html)
-    logger.info('analyze %s complete', url)
     log_brief(url, brief)
     return brief
 ```
@@ -54,11 +55,10 @@ async def analyze_page(url: str) -> PageBrief:
 
 `fetch_page` rides out a flaky network with `tries`, stays polite with `rate_limit`, and aborts a hang with `timeout`.
 
-```python examples/web_analyst/app.py
+```python examples/web_analyst/test_app.py
 @task(tries=3, delay=1, timeout=30, rate_limit=2)
 async def fetch_page(url: str) -> str:
-    logger = get_logger()
-    logger.info('GET %s', url)
+    get_logger().info('GET %s', url)
     response = requests.get(url, timeout=10)
     response.raise_for_status()
     return response.text
@@ -68,16 +68,14 @@ async def fetch_page(url: str) -> str:
 
 `summarize` classifies the page, then runs the matching specialist agent. `cache` keys on `(url, html)`, so an identical page is briefed once. Each `run_agent` is its own run, so the delegation tree is visible.
 
-```python examples/web_analyst/app.py
+```python examples/web_analyst/test_app.py
 @task(tries=3, delay=2, cache=True, cache_ttl=3600)
 async def summarize(url: str, html: str) -> PageBrief:
-    logger = get_logger()
     prompt = build_prompt(url, html)
-    triage = await run_agent(triage_agent, prompt)
-    category = (triage.final_output.category or 'other').lower()
-    specialist = SPECIALISTS[category]
-    # The specialist gets the full HTML via context so extract_links works on the
-    # whole page, not the truncated prompt.
+    classify = await run_agent(classify_agent, prompt)
+    category = (classify.final_output.category or 'other').lower()
+    specialist = SPECIALISTS.get(category, general_agent)
+    # Specialist gets full HTML via context so extract_links sees the whole page.
     result = await run_agent(specialist, prompt, PageContext(html=html))
     return result.final_output
 ```
@@ -86,20 +84,19 @@ async def summarize(url: str, html: str) -> PageBrief:
 
 The `extract_links` tool follows a pattern worth calling out: the `@task` lives on the real work with a clean, serializable signature, and a thin `@function_tool` wrapper adapts it to the agent SDK. The decorators cannot stack, so keeping them as two functions gives you a proper task run for the tool *and* a schema the agent can call.
 
-```python examples/web_analyst/app.py
+```python examples/web_analyst/test_app.py
 @task
 async def extract_links(html: str) -> list[str]:
-    logger = get_logger()
     hrefs = re.findall(r"""href=["'](https?://[^"']+)["']""", html)
     links = list(dict.fromkeys(hrefs))[:20]
-    logger.info('extract_links found %d link(s)', len(links))
+    get_logger().info('extract_links found %d link(s)', len(links))
     return links
 
 
 @function_tool(
     name_override='extract_links',
-    description_override='Return up to 20 distinct absolute (http/https) links found on the page. '
-    'Takes no arguments — it reads the full HTML from the run context.',
+    description_override='Return up to 20 distinct absolute (http/https) links found '
+    'on the page. Takes no arguments — it reads the full HTML from the run context.',
 )
 async def extract_links_tool(ctx: RunContextWrapper[PageContext]) -> list[str]:
     return await extract_links(ctx.context.html)

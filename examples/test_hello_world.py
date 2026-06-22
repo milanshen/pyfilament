@@ -1,3 +1,10 @@
+"""The simplest pyfilament example: two @tasks calling each other in-process.
+
+Run it from the repo root:
+
+    uv run pytest examples/test_hello_world.py
+"""
+
 import asyncio
 import logging
 
@@ -24,10 +31,5 @@ async def say_hello():
     return f'Hello, {greeting}!'
 
 
-async def main():
-    result = await say_hello()
-    print('result:', result)
-
-
-if __name__ == '__main__':
-    asyncio.run(main())
+async def test_hello_world() -> None:
+    assert await say_hello() == 'Hello, world!'

@@ -125,7 +125,7 @@ async def run_agent(agent: Agent, prompt: str, context: PageContext | None = Non
         u = result.context_wrapper.usage
         logger.info('Token usage: total=%s, input=%s, output=%s', u.total_tokens, u.input_tokens, u.output_tokens)
     except Exception as e:
-        logger.error('Error getting token usage: %s', e)
+        logger.exception('Error getting token usage: %s', e)
     return result
 
 

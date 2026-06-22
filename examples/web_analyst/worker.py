@@ -7,9 +7,8 @@ logging.getLogger().setLevel(logging.DEBUG)
 
 
 async def main() -> None:
-    # Register every task type up front (serially, under a lock) so concurrent runs
-    # never race to insert the same row, then serve analyze_page off the queue. Run
-    # this in as many terminals as you like — workers share the queue and the global
+    # Register the task types, then serve analyze_page off the Redis queue until stopped.
+    # Start as many workers as you like — they share the queue and the global
     # max_concurrent cap. Run from the repo root: python -m examples.web_analyst.worker
     await register_task_types()
     print('worker ready — serving analyze_page (submit jobs in another terminal)')

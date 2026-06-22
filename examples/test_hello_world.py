@@ -24,10 +24,5 @@ async def say_hello():
     return f'Hello, {greeting}!'
 
 
-async def main():
-    result = await say_hello()
-    print('result:', result)
-
-
-if __name__ == '__main__':
-    asyncio.run(main())
+async def test_hello_world() -> None:
+    assert await say_hello() == 'Hello, world!'

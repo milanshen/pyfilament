@@ -11,9 +11,6 @@ from agents import Agent, RunContextWrapper, Runner, RunResult, function_tool
 from pydantic import BaseModel
 
 from filament import get_logger, task
-from filament.db.session import async_session_scope
-from filament.redis.semaphore import RedisSemaphore
-from filament.state.task_type_state import upsert_task_type_state
 
 pytestmark = pytest.mark.examples
 
@@ -167,18 +164,6 @@ async def analyze_page(url: str) -> PageBrief:
 #   Terminal 2:  python -m examples.web_analyst          # submit jobs
 
 
-TASK_TYPES = [extract_links, run_agent, fetch_page, summarize, analyze_page]
-
-
-async def register_task_types() -> None:
-    # Create each @task type's DB row once, serially, under a lock so concurrent
-    # first-time runs never race to insert the same row.
-    async with RedisSemaphore(name='web_analyst:register_task_types', max_leases=1, ttl=60):
-        async with async_session_scope() as session:
-            for task_type in TASK_TYPES:
-                await upsert_task_type_state(session, task_type)
-
-
 @task
 async def run_web_analyst_pipeline(urls: list[str]) -> list[PageBrief]:
     print('Pipeline started...' + '\n' + 'Check logs in the filament UI for progress.')
@@ -218,7 +203,6 @@ DEFAULT_URLS = [
 
 
 async def test_run_web_analyst_pipeline() -> None:
-    await register_task_types()
     async with anyio.create_task_group() as tg:
         shutdown_event = anyio.Event()
         tg.start_soon(analyze_page.serve, shutdown_event)

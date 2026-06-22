@@ -5,14 +5,11 @@ import os
 import re
 
 import anyio
-import pytest
 import requests
 from agents import Agent, RunContextWrapper, Runner, RunResult, function_tool
 from pydantic import BaseModel
 
 from filament import get_logger, task
-
-pytestmark = pytest.mark.examples
 
 MODEL = os.getenv('OPENAI_MODEL', 'gpt-5.4')
 logging.getLogger().setLevel(logging.DEBUG)
@@ -130,7 +127,7 @@ async def run_agent(agent: Agent, prompt: str, context: PageContext | None = Non
 ### TASKS
 
 
-@task(tries=3, delay=1, timeout=30, rate_limit=2)
+@task
 async def fetch_page(url: str) -> str:
     get_logger().info('GET %s', url)
     response = requests.get(url, timeout=10)
@@ -138,7 +135,7 @@ async def fetch_page(url: str) -> str:
     return response.text
 
 
-@task(tries=3, delay=2, cache=True, cache_ttl=3600)
+@task
 async def summarize(url: str, html: str) -> PageBrief:
     prompt = build_prompt(url, html)
     classify = await run_agent(classify_agent, prompt)
@@ -149,19 +146,13 @@ async def summarize(url: str, html: str) -> PageBrief:
     return result.final_output
 
 
-@task(max_concurrent=4)
+@task
 async def analyze_page(url: str) -> PageBrief:
     get_logger().info('analyze %s', url)
     html = await fetch_page(url)
     brief = await summarize(url, html)
     log_brief(url, brief)
     return brief
-
-
-### DISTRIBUTED RUN
-# Two processes share a Redis queue. Run both from the repo root:
-#   Terminal 1:  python -m examples.web_analyst.worker   # serve forever
-#   Terminal 2:  python -m examples.web_analyst          # submit jobs
 
 
 @task
@@ -191,14 +182,6 @@ async def _run_web_analyst_pipeline(shutdown_event: anyio.Event):
 DEFAULT_URLS = [
     'https://news.ycombinator.com',
     'https://lite.cnn.com',
-    'https://text.npr.org',
-    'https://docs.python.org/3/',
-    'https://fastapi.tiangolo.com',
-    'https://react.dev',
-    'https://peps.python.org/pep-0008/',
-    'https://www.rfc-editor.org/rfc/rfc9110.html',
-    'https://simonwillison.net',
-    'https://example.com',
 ]
 
 

@@ -12,7 +12,6 @@ Run it from the repo root (requires `pip install anthropic`):
 
 from __future__ import annotations
 
-import asyncio
 import logging
 from collections.abc import AsyncGenerator
 
@@ -99,7 +98,7 @@ async def answer_weather_question(question: str) -> AsyncGenerator[str, None]:
 
 
 @task
-async def main() -> None:
+async def print_weather_answers() -> None:
     questions = [
         'What is the weather in Paris?',
         'Should I bring sunglasses in Cairo or Tokyo right now?',
@@ -111,9 +110,5 @@ async def main() -> None:
         print('\n')
 
 
-async def test_get_weather() -> None:
-    await main()
-
-
-if __name__ == '__main__':
-    asyncio.run(main())
+async def test_get_weather():
+    await print_weather_answers()

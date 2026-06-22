@@ -1,0 +1,71 @@
+---
+title: "Hello World Example"
+sidebarTitle: "Hello world"
+description: "A minimal Pyfilament example: two nested @task functions that demonstrate parent-child run tracking and run-scoped logging with no external dependencies."
+---
+
+This is the smallest useful Pyfilament program. It defines two tasks where one calls the other, so you can see how Pyfilament links a parent run to its subtask and scopes logs to the run that produced them. It has no external dependencies — run it as-is.
+
+## The code
+
+```python examples/test_hello_world.py
+import asyncio
+import logging
+
+from filament import get_logger, task
+
+logging.getLogger().setLevel(logging.DEBUG)
+
+
+@task
+async def make_greeting():
+    logger = get_logger()
+    logger.info('Building greeting')
+    await asyncio.sleep(0.1)
+    return 'world'
+
+
+@task
+async def say_hello():
+    logger = get_logger()
+    logger.info('Saying hello')
+    await asyncio.sleep(0.1)
+    greeting = await make_greeting()
+    await asyncio.sleep(0.1)
+    return f'Hello, {greeting}!'
+
+
+async def main():
+    result = await say_hello()
+    print(result)
+
+
+if __name__ == '__main__':
+    asyncio.run(main())
+```
+
+## Run it
+
+```bash
+python -m examples.test_hello_world
+```
+
+You will see the debug logs from each task followed by `Hello, world!`.
+
+<Note>
+  The file is named `test_hello_world.py` so it doubles as a runnable test in this
+  repository's demo environment. Nothing about the example depends on pytest — run it
+  directly with `python -m` as shown above.
+</Note>
+
+## What to notice
+
+- **Nested tasks build a tree.** `say_hello` awaits `make_greeting`, so `make_greeting` runs as a subtask. Pyfilament records the parent-child link automatically and nests the two runs in the dashboard. See [Subtasks](/distributed/subtasks).
+- **`get_logger()` scopes logs to the run.** Calling [`get_logger()`](/observability/logging) inside a task returns a logger tied to the current run, so the `Building greeting` and `Saying hello` lines are attached to their respective runs rather than only printed to stdout.
+- **Calling a task returns its result.** Awaiting `say_hello()` runs the task in-process and hands back the return value directly — no queue or worker involved.
+
+<Tip>
+  From here, add `@task(tries=3, timeout=10)` to either function to see retries and
+  timeouts in action. See the [task decorator reference](/api/task-decorator) for
+  every option.
+</Tip>

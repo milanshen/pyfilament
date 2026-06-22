@@ -33,17 +33,39 @@ Pyfilament is published to [PyPI](https://pypi.org/project/pyfilament/) and inst
 
 ## Configure Redis
 
-Pyfilament reads your Redis connection from three environment variables. If they are not set, it defaults to `localhost:6379` on database `0`.
+Pyfilament connects to Redis at `localhost:6379` on database `0` by default. If your Redis runs there, no configuration is needed.
 
-Set these in your shell or in a `.env` file at the root of your project:
+To point at a different Redis, set any of these environment variables in your shell or a `.env` file at the root of your project — Pyfilament loads `.env` automatically at startup. Each falls back to its default when unset, so you only set the ones you need to change:
 
 ```ini .env
-FILAMENT_REDIS_HOST=localhost
-FILAMENT_REDIS_PORT=6379
-FILAMENT_REDIS_DB=0
+FILAMENT_REDIS_HOST=redis.internal   # default: localhost
+FILAMENT_REDIS_PORT=6380             # default: 6379
+FILAMENT_REDIS_DB=1                  # default: 0
 ```
 
-Pyfilament loads `.env` automatically at startup, so no additional setup is required.
+## Configure the database
+
+Pyfilament records every task run in a database. By default it uses a local SQLite file (`filament.sqlite`) created in your working directory, so no configuration is needed to get started.
+
+To use Postgres instead, set `FILAMENT_DB_URI` to an async connection string:
+
+```ini .env
+FILAMENT_DB_URI=postgresql+asyncpg://user:pass@localhost:5432/filament
+```
+
+Both the workers running your tasks and the observability dashboard read this database, so point them at the same one.
+
+### Create the schema
+
+Pyfilament does not create its tables automatically. Apply the Alembic migrations once against your database before running any task — every task run records its state there, and the dashboard reads the same tables:
+
+```bash
+uv run alembic upgrade head
+```
+
+<Note>
+  The migrations live in the [Pyfilament repository](https://github.com/pyfilament/pyfilament) and are run from a checkout of it; they are not bundled in the published package. Re-run the command after pulling changes that add new migrations.
+</Note>
 
 ## Verify your installation
 
@@ -71,6 +93,6 @@ You should see `pong` printed to stdout. If you see an import error, confirm tha
 
 ## Start the observability server
 
-Pyfilament ships a **FastAPI** backend and a **React** frontend that give you a live dashboard for monitoring task runs: state timelines, structured logs, captured inputs and outputs, and worker status.
+Pyfilament ships a **FastAPI** backend and a **React** frontend that give you a live dashboard for monitoring task runs: state timelines, structured logs, captured inputs and outputs, and worker status. Point both at the same database and Redis instance your tasks use.
 
-To start the server, point it at the same Redis instance your tasks use. See [Observability Dashboard](/observability/dashboard) for full configuration and startup instructions.
+See [Observability Dashboard](/observability/dashboard#start-the-dashboard) for the commands to start the backend and frontend.

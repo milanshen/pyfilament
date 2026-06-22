@@ -1,0 +1,129 @@
+---
+title: "Weather Agent Example"
+sidebarTitle: "Weather agent"
+description: "A streaming tool-use agent loop on the Anthropic API where every model call and tool call is its own Pyfilament task run, with answer tokens streamed to the caller through async-generator tasks."
+---
+
+This example wraps a streaming tool-use agent loop in Pyfilament tasks. The agent answers weather questions by calling a `get_weather` tool, and each model request and tool call becomes its own task run. There is no queue or worker — every task runs in-process — but the final answer streams back token by token through Pyfilament's async-generator support, and you still get the full call tree for free.
+
+## Prerequisites
+
+- An Anthropic API key in your environment.
+- The `anthropic` SDK (part of the `examples` dependency group).
+
+```bash
+export ANTHROPIC_API_KEY=sk-ant-...
+```
+
+## How it works
+
+The example defines three tasks plus a `main` driver:
+
+- `get_weather` — the tool. Looks up canned weather data for a city. Each call is its own run, so you can see exactly which cities the model asked about.
+- `generate_response` — an async-generator `@task` that opens a streaming request to the model. It yields answer tokens as they arrive, then yields the final message (stop reason and content blocks) so the loop can act on tool calls.
+- `answer_weather_question` — the tool-use loop. It consumes `generate_response`, re-yields each answer token to its own caller, runs any `get_weather` call the model requests, and feeds the results back until the model produces a final answer.
+
+The model and turn cap are set at the top of the file:
+
+```python examples/test_get_weather.py
+MODEL = 'claude-sonnet-4-6'
+MAX_TURNS = 10
+```
+
+### The tool
+
+The `@task` lives on the real work. It is a normal async function with a clean, serializable signature, so Pyfilament records its input (`city`) and output.
+
+```python examples/test_get_weather.py
+@task
+async def get_weather(city: str) -> str:
+    get_logger().info('Looking up weather for %s', city)
+    return FAKE_WEATHER.get(city.lower(), f'No data for {city}; assume 20°C and mild.')
+```
+
+### The streaming model call
+
+`generate_response` is an async-generator `@task`: the values it yields stream to its caller through `async for`. It streams the model's text tokens as they arrive, then yields a final dict carrying the stop reason and content blocks so the loop can inspect any tool calls. Because it is a `@task`, every model call is still its own run.
+
+```python examples/test_get_weather.py
+@task
+async def generate_response(messages: list[dict]) -> AsyncGenerator[str | dict, None]:
+    async with client.messages.stream(model=MODEL, max_tokens=1024, tools=[WEATHER_TOOL], messages=messages) as stream:
+        async for text in stream.text_stream:
+            yield text
+        final = await stream.get_final_message()
+        get_logger().info('LLM call: stop=%s', final.stop_reason)
+        yield {'stop_reason': final.stop_reason, 'content': [b.model_dump(exclude_none=True) for b in final.content]}
+```
+
+### The agent loop
+
+`answer_weather_question` is itself a streaming `@task`. It consumes `generate_response` with `async for`, re-yielding each text token to its own caller while capturing the final message. When the model requests a tool, it runs each `get_weather` call as its own run and hands the results back, looping until the model stops requesting tools.
+
+```python examples/test_get_weather.py
+@task
+async def answer_weather_question(question: str) -> AsyncGenerator[str, None]:
+    get_logger().info('Question: %s', question)
+    messages: list[dict] = [{'role': 'user', 'content': question}]
+    for _ in range(MAX_TURNS):
+        reply = None
+        async for event in generate_response(messages):
+            if isinstance(event, str):
+                yield event
+            else:
+                reply = event
+        messages.append({'role': 'assistant', 'content': reply['content']})
+        if reply['stop_reason'] != 'tool_use':
+            return
+        tool_results = []
+        for block in reply['content']:
+            if block['type'] != 'tool_use':
+                continue
+            assert block['name'] == 'get_weather', f'Unexpected tool: {block["name"]}'
+            weather = await get_weather(block['input']['city'])
+            tool_results.append({'type': 'tool_result', 'tool_use_id': block['id'], 'content': weather})
+        messages.append({'role': 'user', 'content': tool_results})
+    raise RuntimeError(f'No final answer after {MAX_TURNS} turns')
+```
+
+`main` drives it: for each question it prints the answer as it streams in.
+
+```python examples/test_get_weather.py
+@task
+async def main() -> None:
+    questions = [
+        'What is the weather in Paris?',
+        'Should I bring sunglasses in Cairo or Tokyo right now?',
+    ]
+    for question in questions:
+        print(f'Q: {question}\nA: ', end='', flush=True)
+        async for chunk in answer_weather_question(question):
+            print(chunk, end='', flush=True)
+        print('\n')
+```
+
+## Run it
+
+```bash
+python -m examples.test_get_weather
+```
+
+The script asks two questions, including one that forces the model to look up two cities in a single turn. The answer prints token by token as it streams, and each model call and each `get_weather` lookup shows up as a separate run in the call tree.
+
+<Note>
+  The file is named `test_get_weather.py` so it doubles as a runnable test in this
+  repository's demo environment. Nothing about the example depends on pytest — run it
+  directly with `python -m` as shown above.
+</Note>
+
+## What to notice
+
+- **Async-generator tasks stream their output.** Both `generate_response` and `answer_weather_question` are `@task` functions that `yield`. Their values stream to the caller through `async for`, so the final answer reaches the terminal as the model produces it rather than after the whole turn completes.
+- **Streaming composes.** `answer_weather_question` consumes `generate_response`'s stream and re-yields tokens, so the inner stream flows all the way out to `main` while the loop still gets the structured final message it needs.
+- **The `@task` goes on the real work, as deep as possible.** Decorating `get_weather` and `generate_response` — not just the top-level loop — is what produces a useful call tree. See [Tasks](/concepts/tasks).
+
+<Tip>
+  The canned `FAKE_WEATHER` data keeps the example offline and deterministic. Swap
+  it for a real weather API call and it stays a single `@task` — the agent loop does
+  not change.
+</Tip>

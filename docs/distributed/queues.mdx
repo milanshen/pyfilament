@@ -1,5 +1,5 @@
 ---
-title: "queues"
+title: "Queues"
 ---
 
 Pyfilament uses Redis Streams as its distributed task queue. Each `@task` type gets a dedicated queue, and messages persist in Redis regardless of whether any workers are running at the time of submission.

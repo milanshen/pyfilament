@@ -32,6 +32,15 @@
             "pages": ["introduction", "quickstart", "installation"]
           },
           {
+            "group": "Examples",
+            "pages": [
+              "examples/overview",
+              "examples/hello-world",
+              "examples/weather-agent",
+              "examples/web-analyst"
+            ]
+          },
+          {
             "group": "Core Concepts",
             "pages": [
               "concepts/tasks",

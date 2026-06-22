@@ -4,6 +4,7 @@ import logging
 import os
 import re
 
+import anyio
 import pytest
 import requests
 from agents import Agent, RunContextWrapper, Runner, RunResult, function_tool
@@ -180,7 +181,6 @@ async def register_task_types() -> None:
 
 @task
 async def run_web_analyst_pipeline(urls: list[str]) -> list[PageBrief]:
-    await register_task_types()
     print('Pipeline started...' + '\n' + 'Check logs in the filament UI for progress.')
     logger = get_logger()
     logger.info('Submitting %d url(s) to the queue …', len(urls))
@@ -195,6 +195,12 @@ def log_brief(url: str, b: PageBrief) -> None:
     # One message so the brief lands as a single log entry tied to the current run.
     payload = {'url': url, 'model': MODEL, **b.model_dump()}
     get_logger().info(json.dumps(payload, indent=2, ensure_ascii=False))
+
+
+async def _run_web_analyst_pipeline(shutdown_event: anyio.Event):
+    briefs = await run_web_analyst_pipeline(DEFAULT_URLS)
+    assert briefs and briefs[0].title
+    shutdown_event.set()
 
 
 DEFAULT_URLS = [
@@ -212,5 +218,8 @@ DEFAULT_URLS = [
 
 
 async def test_run_web_analyst_pipeline() -> None:
-    briefs = await run_web_analyst_pipeline(DEFAULT_URLS)
-    assert briefs and briefs[0].title
+    await register_task_types()
+    async with anyio.create_task_group() as tg:
+        shutdown_event = anyio.Event()
+        tg.start_soon(analyze_page.serve, shutdown_event)
+        tg.start_soon(_run_web_analyst_pipeline, shutdown_event)

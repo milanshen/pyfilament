@@ -5,11 +5,10 @@ labels:
 - includeSelectors: true
   includeTemplates: true
   pairs:
-    app: pyfilament-ui
+    app: pyfilament-examples
 
 resources:
-- deployment.yaml
-- service.yaml
+- cronjob.yaml
 images:
-- name: ghcr.io/pyfilament/pyfilament-ui
+- name: ghcr.io/pyfilament/pyfilament
   newTag: 0.0.18
